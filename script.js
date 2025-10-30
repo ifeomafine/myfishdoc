@@ -109,12 +109,10 @@ document.getElementById("diagnoseBtn").addEventListener("click", async () => {
   resultDiv.innerHTML = "<p>Analyzing symptoms...</p>";
 
   try {
-    const response = await fetch("https://api.anthropic.com/v1/messages", {
+    const response = await fetch("/api/claude", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "x-api-key": CLAUDE_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,
-        "anthropic-version": "2023-06-01"
       },
       body: JSON.stringify({
         model: "claude-3-5-sonnet-20241022",
@@ -177,3 +175,4 @@ document.getElementById("calcFeedQty").addEventListener("click", () => {
   const totalFeed = (avgWeight * totalFish * feedRate).toFixed(2);
   document.getElementById("feedQtyResult").textContent = `Feed Quantity: ${totalFeed} kg/day`;
 });
+
