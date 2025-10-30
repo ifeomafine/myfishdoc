@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>MyFishDoc Online</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="container">
+    <h1>🐟 MyFishDoc Online</h1>
+
+    <div class="tabs">
+      <button class="tab-button active" data-tab="records">Farm Records</button>
+      <button class="tab-button" data-tab="diagnosis">AI Disease Diagnosis</button>
+      <button class="tab-button" data-tab="calculators">Calculators</button>
+    </div>
+
+    <!-- Farm Records Tab -->
+    <div class="tab-content active" id="records">
+      <div class="dashboard">
+        <div class="dash-card"><h3>Total Fish</h3><p id="totalFish">0</p></div>
+        <div class="dash-card"><h3>Total Feed (kg)</h3><p id="totalFeed">0</p></div>
+        <div class="dash-card"><h3>Total Expense (₦)</h3><p id="totalExpense">0</p></div>
+      </div>
+
+      <h2>Add Farm Record</h2>
+      <form id="recordForm">
+        <label for="date">Date</label>
+<input type="date" id="date" required>
+
+        <input type="text" id="pondName" placeholder="Pond Name" required />
+        <input type="number" id="fishCount" placeholder="Number of Fish" required />
+        <input type="number" id="feedUsed" placeholder="Feed Used (kg)" required />
+        <input type="number" id="expense" placeholder="Expense (₦)" required />
+        <textarea id="notes" placeholder="Notes (optional)"></textarea>
+        <button type="submit" id="saveRecord">Save Record</button>
+      </form>
+
+      <table id="recordsTable">
+        <thead>
+          <tr>
+            <th>Date</th>
+            <th>Pond</th>
+            <th>Fish</th>
+            <th>Feed (kg)</th>
+            <th>Expense (₦)</th>
+            <th>Notes</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+
+    <!-- Diagnosis Tab -->
+    <div class="tab-content" id="diagnosis">
+      <h2>AI Disease Diagnosis</h2>
+      <textarea id="diseaseInput" placeholder="Describe fish symptoms..." rows="5"></textarea>
+      <button id="diagnoseBtn">Diagnose with Claude</button>
+      <div id="diagnosisResult"></div>
+    </div>
+
+    <!-- Calculators Tab -->
+    <div class="tab-content" id="calculators">
+      <h2>Calculators</h2>
+      <div class="calc-container">
+
+        <div class="calc-card">
+          <h3>Feed Conversion Ratio (FCR)</h3>
+          <input type="number" id="feedGiven" placeholder="Feed Given (kg)" />
+          <input type="number" id="initialWeight" placeholder="Initial Fish Weight (kg)" />
+          <input type="number" id="finalWeight" placeholder="Final Fish Weight (kg)" />
+          <button id="calcFCR">Calculate FCR</button>
+          <p id="fcrResult"></p>
+        </div>
+
+        <div class="calc-card">
+          <h3>Daily Feed Requirement</h3>
+          <input type="number" id="sampleCount" placeholder="Number of Sampled Fish" />
+          <input type="number" id="sampleWeight" placeholder="Total Sample Weight" />
+          <select id="weightUnit">
+            <option value="g">grams (g)</option>
+            <option value="kg">kilograms (kg)</option>
+          </select>
+          <input type="number" id="fishAge" placeholder="Fish Age (weeks)" />
+          <input type="number" id="totalFishCount" placeholder="Total Fish Count" />
+          <button id="calcFeedQty">Calculate Feed</button>
+          <p id="feedQtyResult"></p>
+        </div>
+      </div>
+
+      <div class="guide">
+        <h3>Quick Reference Guide</h3>
+        <ul>
+          <li><b>Good FCR Range:</b> 1.0 - 1.8 (lower is better)</li>
+          <li><b>Feeding Frequency:</b> 2 times per day (preferably)</li>
+          <li><b>Water Temperature:</b> 26°C – 32°C</li>
+          <li><b>Dissolved Oxygen:</b> Minimum 3–4 mg/L</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>
