@@ -101,64 +101,59 @@ document.getElementById("diagnoseBtn").addEventListener("click", async () => {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        model: "claude-sonnet-4-5-20250929",
-        max_tokens: 600,
+        model: "claude-3-5-sonnet-20241022",
+        max_tokens: 500,
         messages: [
           {
             role: "user",
-            content: `You are an expert aquaculture veterinarian.
-Given this catfish symptom description: "${input}", provide a structured JSON response with exactly:
-{
-  "diagnosis": "Likely disease and reasoning.",
-  "treatment": "Detailed treatment steps including dosage if applicable.",
-  "prevention": "Practical prevention measures."
-}
-Do not include code blocks or markdown. Respond only in valid JSON.`
+            content: `You are an aquaculture expert. Based on this description: "${input}", identify the likely fish disease, recommend treatment, and give prevention steps. 
+            Format your response strictly as a JSON object with keys: diagnosis, treatment, prevention. 
+            For treatment and prevention, use numbered points (1), 2), etc.), each on a new line.`
           }
         ]
       })
     });
 
     const data = await response.json();
-    let text = data?.content?.[0]?.text?.trim() || "";
+    let text = data.content?.[0]?.text || "";
 
-    // 🧹 Clean and parse even if Claude returns extra formatting
-    text = text
-      .replace(/```json/g, "")
-      .replace(/```/g, "")
-      .replace(/^json\s*/i, "")
-      .trim();
+    // Clean up markdown or code block wrappers
+    text = text.replace(/```json|```/g, "").trim();
 
-    let parsed = {};
+    let parsed;
     try {
       parsed = JSON.parse(text);
-    } catch (e) {
-      console.warn("Claude JSON parse issue, fallback used:", e);
+    } catch (err) {
+      console.error("JSON parse failed, fallback to plain text.");
       parsed = {
-        diagnosis: extractSection(text, "diagnosis") || "Diagnosis unavailable. Try rephrasing.",
-        treatment: extractSection(text, "treatment") || "Treatment unavailable.",
-        prevention: extractSection(text, "prevention") || "Prevention unavailable."
+        diagnosis: "Could not extract structured diagnosis. Here's what the AI said:",
+        treatment: text,
+        prevention: "Try rephrasing or adding more detail about symptoms."
       };
     }
 
-    // Display structured result
+    const formatMultiline = str =>
+      str.replace(/\d+\)/g, match => `<br><strong>${match}</strong>`);
+
     resultDiv.innerHTML = `
-      <div class="ai-card"><h3>Diagnosis</h3><p>${parsed.diagnosis}</p></div>
-      <div class="ai-card"><h3>Treatment</h3><p>${parsed.treatment}</p></div>
-      <div class="ai-card"><h3>Prevention</h3><p>${parsed.prevention}</p></div>
+      <div class="ai-card">
+        <h3>Diagnosis</h3>
+        <p>${parsed.diagnosis.replace(/\n/g, "<br>")}</p>
+      </div>
+      <div class="ai-card">
+        <h3>Treatment</h3>
+        <p>${formatMultiline(parsed.treatment)}</p>
+      </div>
+      <div class="ai-card">
+        <h3>Prevention</h3>
+        <p>${formatMultiline(parsed.prevention)}</p>
+      </div>
     `;
   } catch (err) {
     console.error("Claude API Error:", err);
-    resultDiv.innerHTML = `<p style="color:red;">Error connecting to Claude API.</p>`;
+    resultDiv.innerHTML = `<p style="color:red;">Error connecting to Claude API</p>`;
   }
 });
-
-// 🔍 Helper function to extract fallback sections from plain text
-function extractSection(text, key) {
-  const regex = new RegExp(`${key}\\s*[:\\-]\\s*(.+?)(?=(\\n[A-Z]|$))`, "is");
-  const match = text.match(regex);
-  return match ? match[1].trim() : null;
-}
 
 // ========== CALCULATORS ==========
 // Feed Conversion Ratio (FCR)
@@ -204,3 +199,4 @@ document.getElementById("calcFeedQty").addEventListener("click", () => {
     "feedQtyResult"
   ).textContent = `Feed Quantity: ${totalFeed} kg/day`;
 });
+
