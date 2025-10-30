@@ -1,5 +1,3 @@
-const CLAUDE_API_KEY = "YOUR_CLAUDE_API_KEY_HERE"; // Replace with your actual Claude API key
-
 // ========== TAB SWITCHING ==========
 const tabButtons = document.querySelectorAll(".tab-button");
 const tabContents = document.querySelectorAll(".tab-content");
@@ -19,7 +17,7 @@ const tableBody = document.querySelector("#recordsTable tbody");
 
 let records = JSON.parse(localStorage.getItem("farmRecords")) || [];
 
-// Render existing records + totals
+// Render farm records + totals
 function renderRecords() {
   tableBody.innerHTML = "";
   let totalFish = 0, totalFeed = 0, totalExpense = 0;
@@ -51,10 +49,9 @@ function renderRecords() {
   localStorage.setItem("farmRecords", JSON.stringify(records));
 }
 
-// Handle form submission
+// Add or update records
 form.addEventListener("submit", e => {
   e.preventDefault();
-
   const newRecord = {
     date: form.date.value || new Date().toISOString().split("T")[0],
     pondName: form.pondName.value,
@@ -63,23 +60,21 @@ form.addEventListener("submit", e => {
     expense: form.expense.value,
     notes: form.notes.value
   };
-
   records.push(newRecord);
   renderRecords();
   form.reset();
 
-  // Auto-fill today’s date after reset
   const today = new Date().toISOString().split("T")[0];
   form.date.value = today;
 });
 
-// Delete record
+// Delete a record
 function deleteRecord(index) {
   records.splice(index, 1);
   renderRecords();
 }
 
-// Edit record
+// Edit record (loads data back into form)
 function editRecord(index) {
   const r = records[index];
   form.date.value = r.date;
@@ -91,8 +86,8 @@ function editRecord(index) {
   deleteRecord(index);
 }
 
+// Auto-fill today's date
 document.addEventListener("DOMContentLoaded", () => {
-  // Auto-fill date with today
   const dateInput = document.getElementById("date");
   if (dateInput) {
     const today = new Date().toISOString().split("T")[0];
@@ -111,60 +106,86 @@ document.getElementById("diagnoseBtn").addEventListener("click", async () => {
   try {
     const response = await fetch("/api/claude", {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        model: "claude-3-5-sonnet-20241022",
+        model: "claude-sonnet-4-5-20250929", // ✅ Updated model
         max_tokens: 400,
-        messages: [{
-          role: "user",
-          content: `You are an aquaculture expert. Based on this description: "${input}", identify the likely fish disease, recommend treatment, and give prevention steps. Format response as JSON with keys: diagnosis, treatment, prevention.`
-        }]
+        messages: [
+          {
+            role: "user",
+            content: `You are an aquaculture veterinarian. Based on this description: "${input}", respond in valid JSON format only with:
+
+{
+  "diagnosis": "Likely fish disease and reasoning.",
+  "treatment": "Step-by-step actionable treatment plan (include medication/dosage).",
+  "prevention": "Key prevention measures to avoid recurrence."
+}`
+          }
+        ]
       })
     });
 
     const data = await response.json();
-    const text = data.content?.[0]?.text;
-    const parsed = JSON.parse(text);
+    let text = data?.content?.[0]?.text || "";
 
+    // Safely parse Claude's response
+    let parsed;
+    try {
+      parsed = JSON.parse(text);
+    } catch {
+      parsed = {
+        diagnosis: "Could not extract structured response.",
+        treatment: text,
+        prevention: "Try rephrasing or providing more symptom details."
+      };
+    }
+
+    // Display result nicely
     resultDiv.innerHTML = `
       <div class="ai-card"><h3>Diagnosis</h3><p>${parsed.diagnosis}</p></div>
       <div class="ai-card"><h3>Treatment</h3><p>${parsed.treatment}</p></div>
       <div class="ai-card"><h3>Prevention</h3><p>${parsed.prevention}</p></div>
     `;
   } catch (err) {
-    resultDiv.innerHTML = `<p style="color:red;">Error connecting to Claude API</p>`;
+    console.error("Claude API Error:", err);
+    resultDiv.innerHTML = `<p style="color:red;">Error connecting to Claude API.</p>`;
   }
 });
 
 // ========== CALCULATORS ==========
+
+// Feed Conversion Ratio (FCR)
 document.getElementById("calcFCR").addEventListener("click", () => {
   const feed = parseFloat(document.getElementById("feedGiven").value);
   const initial = parseFloat(document.getElementById("initialWeight").value);
   const final = parseFloat(document.getElementById("finalWeight").value);
 
   if (!feed || !initial || !final || final <= initial) {
-    return document.getElementById("fcrResult").textContent = "Please enter valid values.";
+    return document.getElementById("fcrResult").textContent =
+      "Please enter valid values.";
   }
 
   const fcr = feed / (final - initial);
   document.getElementById("fcrResult").textContent = `FCR: ${fcr.toFixed(2)}`;
 });
 
+// Daily Feed Quantity
 document.getElementById("calcFeedQty").addEventListener("click", () => {
   const sampleCount = parseFloat(document.getElementById("sampleCount").value);
   const sampleWeight = parseFloat(document.getElementById("sampleWeight").value);
   const unit = document.getElementById("weightUnit").value;
   const age = parseInt(document.getElementById("fishAge").value);
   const totalFish = parseInt(document.getElementById("totalFishCount").value);
+
   if (!sampleCount || !sampleWeight || !age || !totalFish) {
-    return document.getElementById("feedQtyResult").textContent = "Please enter all fields.";
+    return (document.getElementById("feedQtyResult").textContent =
+      "Please enter all fields.");
   }
 
   let avgWeight = sampleWeight / sampleCount;
-  if (unit === "g") avgWeight /= 1000;
+  if (unit === "g") avgWeight /= 1000; // convert grams to kg
 
+  // Determine feed rate based on fish age
   let feedRate = 0.05;
   if (age < 4) feedRate = 0.08;
   else if (age < 8) feedRate = 0.06;
@@ -173,6 +194,7 @@ document.getElementById("calcFeedQty").addEventListener("click", () => {
   else feedRate = 0.015;
 
   const totalFeed = (avgWeight * totalFish * feedRate).toFixed(2);
-  document.getElementById("feedQtyResult").textContent = `Feed Quantity: ${totalFeed} kg/day`;
+  document.getElementById(
+    "feedQtyResult"
+  ).textContent = `Feed Quantity: ${totalFeed} kg/day`;
 });
-
