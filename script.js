@@ -14,10 +14,8 @@ tabButtons.forEach(button => {
 // ========== FARM RECORDS ==========
 const form = document.getElementById("recordForm");
 const tableBody = document.querySelector("#recordsTable tbody");
-
 let records = JSON.parse(localStorage.getItem("farmRecords")) || [];
 
-// Render farm records + totals
 function renderRecords() {
   tableBody.innerHTML = "";
   let totalFish = 0, totalFeed = 0, totalExpense = 0;
@@ -49,7 +47,6 @@ function renderRecords() {
   localStorage.setItem("farmRecords", JSON.stringify(records));
 }
 
-// Add or update records
 form.addEventListener("submit", e => {
   e.preventDefault();
   const newRecord = {
@@ -63,18 +60,15 @@ form.addEventListener("submit", e => {
   records.push(newRecord);
   renderRecords();
   form.reset();
-
   const today = new Date().toISOString().split("T")[0];
   form.date.value = today;
 });
 
-// Delete a record
 function deleteRecord(index) {
   records.splice(index, 1);
   renderRecords();
 }
 
-// Edit record (loads data back into form)
 function editRecord(index) {
   const r = records[index];
   form.date.value = r.date;
@@ -86,7 +80,6 @@ function editRecord(index) {
   deleteRecord(index);
 }
 
-// Auto-fill today's date
 document.addEventListener("DOMContentLoaded", () => {
   const dateInput = document.getElementById("date");
   if (dateInput) {
@@ -108,39 +101,47 @@ document.getElementById("diagnoseBtn").addEventListener("click", async () => {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        model: "claude-sonnet-4-5-20250929", // ✅ Updated model
-        max_tokens: 400,
+        model: "claude-sonnet-4-5-20250929",
+        max_tokens: 600,
         messages: [
           {
             role: "user",
-            content: `You are an aquaculture veterinarian. Based on this description: "${input}", respond in valid JSON format only with:
-
+            content: `You are an expert aquaculture veterinarian.
+Given this catfish symptom description: "${input}", provide a structured JSON response with exactly:
 {
-  "diagnosis": "Likely fish disease and reasoning.",
-  "treatment": "Step-by-step actionable treatment plan (include medication/dosage).",
-  "prevention": "Key prevention measures to avoid recurrence."
-}`
+  "diagnosis": "Likely disease and reasoning.",
+  "treatment": "Detailed treatment steps including dosage if applicable.",
+  "prevention": "Practical prevention measures."
+}
+Do not include code blocks or markdown. Respond only in valid JSON.`
           }
         ]
       })
     });
 
     const data = await response.json();
-    let text = data?.content?.[0]?.text || "";
+    let text = data?.content?.[0]?.text?.trim() || "";
 
-    // Safely parse Claude's response
-    let parsed;
+    // 🧹 Clean and parse even if Claude returns extra formatting
+    text = text
+      .replace(/```json/g, "")
+      .replace(/```/g, "")
+      .replace(/^json\s*/i, "")
+      .trim();
+
+    let parsed = {};
     try {
       parsed = JSON.parse(text);
-    } catch {
+    } catch (e) {
+      console.warn("Claude JSON parse issue, fallback used:", e);
       parsed = {
-        diagnosis: "Could not extract structured response.",
-        treatment: text,
-        prevention: "Try rephrasing or providing more symptom details."
+        diagnosis: extractSection(text, "diagnosis") || "Diagnosis unavailable. Try rephrasing.",
+        treatment: extractSection(text, "treatment") || "Treatment unavailable.",
+        prevention: extractSection(text, "prevention") || "Prevention unavailable."
       };
     }
 
-    // Display result nicely
+    // Display structured result
     resultDiv.innerHTML = `
       <div class="ai-card"><h3>Diagnosis</h3><p>${parsed.diagnosis}</p></div>
       <div class="ai-card"><h3>Treatment</h3><p>${parsed.treatment}</p></div>
@@ -152,8 +153,14 @@ document.getElementById("diagnoseBtn").addEventListener("click", async () => {
   }
 });
 
-// ========== CALCULATORS ==========
+// 🔍 Helper function to extract fallback sections from plain text
+function extractSection(text, key) {
+  const regex = new RegExp(`${key}\\s*[:\\-]\\s*(.+?)(?=(\\n[A-Z]|$))`, "is");
+  const match = text.match(regex);
+  return match ? match[1].trim() : null;
+}
 
+// ========== CALCULATORS ==========
 // Feed Conversion Ratio (FCR)
 document.getElementById("calcFCR").addEventListener("click", () => {
   const feed = parseFloat(document.getElementById("feedGiven").value);
@@ -161,15 +168,15 @@ document.getElementById("calcFCR").addEventListener("click", () => {
   const final = parseFloat(document.getElementById("finalWeight").value);
 
   if (!feed || !initial || !final || final <= initial) {
-    return document.getElementById("fcrResult").textContent =
-      "Please enter valid values.";
+    return (document.getElementById("fcrResult").textContent =
+      "Please enter valid values.");
   }
 
   const fcr = feed / (final - initial);
   document.getElementById("fcrResult").textContent = `FCR: ${fcr.toFixed(2)}`;
 });
 
-// Daily Feed Quantity
+// Feed Quantity Calculator
 document.getElementById("calcFeedQty").addEventListener("click", () => {
   const sampleCount = parseFloat(document.getElementById("sampleCount").value);
   const sampleWeight = parseFloat(document.getElementById("sampleWeight").value);
@@ -183,9 +190,8 @@ document.getElementById("calcFeedQty").addEventListener("click", () => {
   }
 
   let avgWeight = sampleWeight / sampleCount;
-  if (unit === "g") avgWeight /= 1000; // convert grams to kg
+  if (unit === "g") avgWeight /= 1000;
 
-  // Determine feed rate based on fish age
   let feedRate = 0.05;
   if (age < 4) feedRate = 0.08;
   else if (age < 8) feedRate = 0.06;
