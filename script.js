@@ -37,51 +37,66 @@ document.addEventListener("DOMContentLoaded", async () => {
     return "user_" + Math.random().toString(36).substring(2, 9);
   }
 
-  async function initUser() {
-    if (!userData) {
-      let email = prompt("Enter your email (Google or personal) to get started:");
-      if (!email || !email.includes("@")) {
-        alert("Valid email required to continue");
-        return;
-      }
+  async function registerUser(email, refCode) {
+    if (!email || !email.includes("@")) {
+      alert("Please enter a valid email address.");
+      return;
+    }
 
-      userData = {
-        userId: generateUserId(),
-        email,
-        isPro: false,
-        diagnosisCount: 0,
-        referralCount: 0,
-        referredBy: refFromLink || null,
-        createdAt: new Date().toISOString(),
-      };
+    userData = {
+      userId: generateUserId(),
+      email,
+      isPro: false,
+      diagnosisCount: 0,
+      referralCount: 0,
+      referredBy: refCode || refFromLink || null,
+      createdAt: new Date().toISOString(),
+    };
 
-      localStorage.setItem("userData", JSON.stringify(userData));
+    localStorage.setItem("userData", JSON.stringify(userData));
 
-      // Send new signup data
+    // Send signup event
+    await sendToWebhook({
+      event: "signup",
+      userId: userData.userId,
+      email: userData.email,
+      referredBy: userData.referredBy,
+      date: new Date().toISOString(),
+    });
+
+    // If referred by someone
+    if (userData.referredBy) {
       await sendToWebhook({
-        event: "signup",
-        userId: userData.userId,
-        email: userData.email,
-        referredBy: userData.referredBy,
+        event: "referral_used",
+        referrerId: userData.referredBy,
+        newUserEmail: userData.email,
+        newUserId: userData.userId,
         date: new Date().toISOString(),
       });
-
-      // If referred, notify Make to credit the referrer
-      if (refFromLink) {
-        await sendToWebhook({
-          event: "referral_used",
-          referrerId: refFromLink,
-          newUserEmail: userData.email,
-          newUserId: userData.userId,
-          date: new Date().toISOString(),
-        });
-      }
-
-      alert("✅ Welcome! Your account has been created successfully.");
     }
+
+    // Hide signup form, show app
+    document.getElementById("signupSection").style.display = "none";
+    document.getElementById("appSection").style.display = "block";
+    alert("✅ Welcome! Your account has been created successfully.");
   }
 
-  await initUser();
+  // ========= SIGNUP FORM HANDLER =========
+  const signupForm = document.getElementById("signupForm");
+  if (signupForm) {
+    signupForm.addEventListener("submit", async e => {
+      e.preventDefault();
+      const email = document.getElementById("emailInput").value.trim();
+      const refCode = document.getElementById("refInput").value.trim();
+      await registerUser(email, refCode);
+    });
+  }
+
+  // Auto-skip signup if already logged in
+  if (userData) {
+    document.getElementById("signupSection").style.display = "none";
+    document.getElementById("appSection").style.display = "block";
+  }
 
   // ========= REFERRAL =========
   function handleReferral() {
@@ -101,7 +116,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 
   function checkReferralBonus() {
-    if (userData.referralCount >= 3 && !userData.isPro) {
+    if (userData?.referralCount >= 3 && !userData.isPro) {
       userData.isPro = true;
       localStorage.setItem("userData", JSON.stringify(userData));
       alert("🎉 You’ve unlocked unlimited Pro access via referrals!");
@@ -144,7 +159,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     localStorage.setItem("farmRecords", JSON.stringify(records));
   }
 
-  form.addEventListener("submit", e => {
+  form?.addEventListener("submit", e => {
     e.preventDefault();
     const newRecord = {
       date: form.date.value || new Date().toISOString().split("T")[0],
@@ -159,7 +174,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     form.reset();
   });
 
-  tableBody.addEventListener("click", e => {
+  tableBody?.addEventListener("click", e => {
     if (e.target.classList.contains("delete")) {
       const index = e.target.dataset.index;
       records.splice(index, 1);
@@ -182,11 +197,11 @@ document.addEventListener("DOMContentLoaded", async () => {
   renderRecords();
 
   // ========= AI DISEASE DIAGNOSIS =========
-  document.getElementById("diagnoseBtn").addEventListener("click", async () => {
+  document.getElementById("diagnoseBtn")?.addEventListener("click", async () => {
     const input = document.getElementById("diseaseInput").value.trim();
     const resultDiv = document.getElementById("diagnosisResult");
 
-    if (!userData.isPro && (userData.diagnosisCount || 0) >= 2) {
+    if (!userData?.isPro && (userData?.diagnosisCount || 0) >= 2) {
       resultDiv.innerHTML = `
         <p style="color:red;">Free limit reached (2 diagnoses/week).<br>
         Invite 3 users via your referral link for unlimited access.</p>
@@ -246,35 +261,4 @@ document.addEventListener("DOMContentLoaded", async () => {
   });
 
   checkReferralBonus();
-
-  // ========= CALCULATORS =========
-  document.getElementById("calcFCR").addEventListener("click", () => {
-    const feed = parseFloat(document.getElementById("feedGiven").value);
-    const initial = parseFloat(document.getElementById("initialWeight").value);
-    const final = parseFloat(document.getElementById("finalWeight").value);
-    if (!feed || !initial || !final || final <= initial)
-      return (document.getElementById("fcrResult").textContent = "Please enter valid values.");
-    const fcr = feed / (final - initial);
-    document.getElementById("fcrResult").textContent = `FCR: ${fcr.toFixed(2)}`;
-  });
-
-  document.getElementById("calcFeedQty").addEventListener("click", () => {
-    const sampleCount = parseFloat(document.getElementById("sampleCount").value);
-    const sampleWeight = parseFloat(document.getElementById("sampleWeight").value);
-    const unit = document.getElementById("weightUnit").value;
-    const age = parseInt(document.getElementById("fishAge").value);
-    const totalFish = parseInt(document.getElementById("totalFishCount").value);
-    if (!sampleCount || !sampleWeight || !age || !totalFish)
-      return (document.getElementById("feedQtyResult").textContent = "Please enter all fields.");
-    let avgWeight = sampleWeight / sampleCount;
-    if (unit === "g") avgWeight /= 1000;
-    let feedRate = 0.05;
-    if (age < 4) feedRate = 0.08;
-    else if (age < 8) feedRate = 0.06;
-    else if (age < 12) feedRate = 0.04;
-    else if (age < 20) feedRate = 0.025;
-    else feedRate = 0.015;
-    const totalFeed = (avgWeight * totalFish * feedRate).toFixed(2);
-    document.getElementById("feedQtyResult").textContent = `Feed Quantity: ${totalFeed} kg/day`;
-  });
 });
