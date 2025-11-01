@@ -18,7 +18,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   // ========== USER DATA & REFERRAL SETUP ==========
   let userData = JSON.parse(localStorage.getItem("userData")) || null;
   const urlParams = new URLSearchParams(window.location.search);
-  const ref = urlParams.get("ref");
+  const refFromLink = urlParams.get("ref");
 
   function generateUserId() {
     return "user_" + Math.random().toString(36).substring(2, 9);
@@ -33,11 +33,12 @@ document.addEventListener("DOMContentLoaded", async () => {
       });
       console.log("✅ Sent to webhook:", payload);
     } catch (err) {
-      console.error("Webhook error:", err);
+      console.error("❌ Webhook error:", err);
     }
   }
 
   async function initUser() {
+    // New visitor (no local data)
     if (!userData) {
       const email = prompt("Enter your email to get started:");
       if (!email) {
@@ -49,12 +50,15 @@ document.addEventListener("DOMContentLoaded", async () => {
         userId: generateUserId(),
         email,
         isPro: false,
+        diagnosisCount: 0,
         referralCount: 0,
-        referredBy: ref || null,
+        referredBy: refFromLink || null,
         createdAt: new Date().toISOString(),
       };
 
       localStorage.setItem("userData", JSON.stringify(userData));
+
+      // Notify Make webhook
       await sendToWebhook({
         event: "signup",
         userId: userData.userId,
@@ -62,10 +66,45 @@ document.addEventListener("DOMContentLoaded", async () => {
         referredBy: userData.referredBy,
         date: new Date().toISOString(),
       });
+
+      // If user was referred, trigger referral credit for referrer
+      if (refFromLink) {
+        await sendToWebhook({
+          event: "referral_used",
+          referredBy: refFromLink,
+          newUser: userData.email,
+          newUserId: userData.userId,
+          date: new Date().toISOString(),
+        });
+      }
     }
   }
 
   await initUser();
+
+  // ========== REFERRAL FUNCTIONS ==========
+  function handleReferral() {
+    const referralLink = `${window.location.origin}?ref=${userData.userId}`;
+    navigator.clipboard.writeText(referralLink);
+    alert(
+      `✅ Your referral link has been copied!\n\n${referralLink}\n\nRefer 3 users to unlock unlimited access.`
+    );
+
+    sendToWebhook({
+      event: "referral_shared",
+      userId: userData.userId,
+      email: userData.email,
+      date: new Date().toISOString(),
+    });
+  }
+
+  function checkReferralBonus() {
+    if (userData.referralCount >= 3 && !userData.isPro) {
+      userData.isPro = true;
+      localStorage.setItem("userData", JSON.stringify(userData));
+      alert("🎉 You’ve unlocked Pro via referrals!");
+    }
+  }
 
   // ========== FARM RECORDS ==========
   const form = document.getElementById("recordForm");
@@ -145,7 +184,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     const input = document.getElementById("diseaseInput").value.trim();
     const resultDiv = document.getElementById("diagnosisResult");
 
-    if (!userData.isPro && userData.diagnosisCount >= 2) {
+    if (!userData.isPro && (userData.diagnosisCount || 0) >= 2) {
       resultDiv.innerHTML = `
         <p style="color:red;">Free limit reached (2 diagnoses/week). 
         <br>Invite 3 users via your referral link for unlimited access.</p>
@@ -200,29 +239,6 @@ document.addEventListener("DOMContentLoaded", async () => {
       resultDiv.innerHTML = `<p style="color:red;">Error connecting to AI diagnosis server.</p>`;
     }
   });
-
-  // ========== REFERRAL SYSTEM ==========
-  function handleReferral() {
-    const referralLink = `${window.location.origin}?ref=${userData.userId}`;
-    navigator.clipboard.writeText(referralLink);
-    alert(
-      `✅ Your referral link has been copied!\n\n${referralLink}\n\nRefer 3 users to unlock unlimited access.`
-    );
-    sendToWebhook({
-      event: "referral_shared",
-      userId: userData.userId,
-      email: userData.email,
-      date: new Date().toISOString(),
-    });
-  }
-
-  function checkReferralBonus() {
-    if (userData.referralCount >= 3 && !userData.isPro) {
-      userData.isPro = true;
-      localStorage.setItem("userData", JSON.stringify(userData));
-      alert("🎉 You’ve unlocked Pro via referrals!");
-    }
-  }
 
   document.addEventListener("click", e => {
     if (e.target.id === "referBtn") handleReferral();
