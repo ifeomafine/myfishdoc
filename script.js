@@ -6,16 +6,13 @@ document.addEventListener("DOMContentLoaded", () => {
   const appContainer = document.getElementById("appContainer");
   const footer = document.getElementById("appFooter");
 
-  // Your Make Webhook URLs
   const MAKE_EVENT_WEBHOOK = "https://hook.eu2.make.com/nx13ilko39doy4w6cdo4e9mch2irl8uf";
   const MAKE_GET_USER_WEBHOOK = "https://hook.eu2.make.com/j5dg9c4wmfno9h5vbgb8ue6wfj14824h"; 
 
-  // Auto-fill referral from URL
   const urlParams = new URLSearchParams(window.location.search);
   const refFromLink = urlParams.get("ref");
   if (refFromLink) referralInput.value = refFromLink;
 
-  // Check local signup
   let user = JSON.parse(localStorage.getItem("myfishdoc_user"));
   if (user) {
     signupModal?.classList.add("hidden");
@@ -29,12 +26,11 @@ document.addEventListener("DOMContentLoaded", () => {
 
   async function sendWebhook(eventType, data) {
     try {
-      const res = await fetch(MAKE_EVENT_WEBHOOK, {
+      await fetch(MAKE_EVENT_WEBHOOK, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ event: eventType, ...data }),
       });
-      console.log(`Webhook sent: ${eventType}`, data, res.status);
     } catch (err) {
       console.error(`Webhook error (${eventType}):`, err);
     }
@@ -47,8 +43,7 @@ document.addEventListener("DOMContentLoaded", () => {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ userId, email }),
       });
-      const data = await res.json();
-      return data;
+      return await res.json();
     } catch (err) {
       console.error("Error fetching user data from Make:", err);
       return null;
@@ -73,11 +68,8 @@ document.addEventListener("DOMContentLoaded", () => {
     };
 
     localStorage.setItem("myfishdoc_user", JSON.stringify(user));
-
-    // Send signup event
     await sendWebhook("signup", user);
 
-    // Send referral_used event if applicable
     if (user.referredBy) {
       await sendWebhook("referral_used", {
         referrer: user.referredBy,
@@ -93,12 +85,10 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   // ===== TAB SWITCHING =====
-  const tabButtons = document.querySelectorAll(".tab-button");
-  const tabContents = document.querySelectorAll(".tab-content");
-  tabButtons.forEach(button => {
+  document.querySelectorAll(".tab-button").forEach(button => {
     button.addEventListener("click", () => {
-      tabButtons.forEach(btn => btn.classList.remove("active"));
-      tabContents.forEach(tab => tab.classList.remove("active"));
+      document.querySelectorAll(".tab-button").forEach(btn => btn.classList.remove("active"));
+      document.querySelectorAll(".tab-content").forEach(tab => tab.classList.remove("active"));
       button.classList.add("active");
       document.getElementById(button.dataset.tab)?.classList.add("active");
     });
@@ -146,47 +136,47 @@ document.addEventListener("DOMContentLoaded", () => {
       tableBody.appendChild(row);
     });
 
-    const totalFishEl = document.getElementById("totalFish");
-    if (totalFishEl) totalFishEl.textContent = totalFish;
-
-    const totalFeedEl = document.getElementById("totalFeed");
-    if (totalFeedEl) totalFeedEl.textContent = totalFeed.toFixed(1);
-
-    const totalExpenseEl = document.getElementById("totalExpense");
-    if (totalExpenseEl) totalExpenseEl.textContent = totalExpense.toLocaleString();
+    ["totalFish", "totalFeed", "totalExpense"].forEach(id => {
+      const el = document.getElementById(id);
+      if (!el) return;
+      if (id === "totalFish") el.textContent = totalFish;
+      if (id === "totalFeed") el.textContent = totalFeed.toFixed(1);
+      if (id === "totalExpense") el.textContent = totalExpense.toLocaleString();
+    });
 
     localStorage.setItem("farmRecords", JSON.stringify(records));
   }
 
   form?.addEventListener("submit", e => {
     e.preventDefault();
-    const newRecord = {
+    records.push({
       date: form.date.value || new Date().toISOString().split("T")[0],
       pondName: form.pondName.value,
       fishCount: form.fishCount.value,
       feedUsed: form.feedUsed.value,
       expense: form.expense.value,
       notes: form.notes.value,
-    };
-    records.push(newRecord);
+    });
     renderRecords();
     form.reset();
   });
 
   tableBody?.addEventListener("click", e => {
+    const idx = e.target.dataset.index;
+    if (!idx) return;
     if (e.target.classList.contains("delete")) {
-      records.splice(e.target.dataset.index, 1);
+      records.splice(idx, 1);
       renderRecords();
     }
     if (e.target.classList.contains("edit")) {
-      const r = records[e.target.dataset.index];
+      const r = records[idx];
       form.date.value = r.date;
       form.pondName.value = r.pondName;
       form.fishCount.value = r.fishCount;
       form.feedUsed.value = r.feedUsed;
       form.expense.value = r.expense;
       form.notes.value = r.notes;
-      records.splice(e.target.dataset.index, 1);
+      records.splice(idx, 1);
       renderRecords();
     }
   });
@@ -202,12 +192,10 @@ document.addEventListener("DOMContentLoaded", () => {
     if (!user) { alert("Please sign up first."); return; }
     if (!input) { alert("Please describe the fish symptoms."); return; }
 
-    // Fetch latest user data from Make
+    // Fetch latest user data from Make (includes weekly reset and pro unlock)
     const liveUserData = await getUserDataFromMake(user.userId, user.email);
     if (liveUserData) {
-      user.diagnosisCount = liveUserData.diagnosisCount;
-      user.isPro = liveUserData.isPro;
-      user.referralCount = liveUserData.referralCount;
+      user = liveUserData;
       localStorage.setItem("myfishdoc_user", JSON.stringify(user));
     }
 
@@ -227,10 +215,7 @@ document.addEventListener("DOMContentLoaded", () => {
           model: "claude-3-5-sonnet-20241022",
           max_tokens: 500,
           messages: [
-            {
-              role: "user",
-              content: `You are an aquaculture expert with over 20 years of experience. Based on this description: "${input}", identify the likely fish disease, recommend treatment, and prevention steps. Format strictly as JSON with keys: diagnosis, treatment, prevention.`,
-            },
+            { role: "user", content: `YYou are an aquaculture expert with over 20 years of experience. Based on this description: "${input}", identify the likely fish disease, recommend treatment, and prevention steps. Format strictly as JSON with keys: diagnosis, treatment, prevention.` },
           ],
         }),
       });
@@ -240,28 +225,16 @@ document.addEventListener("DOMContentLoaded", () => {
       text = text.replace(/```json|```/g, "").trim();
 
       let parsed;
-      try {
-        parsed = JSON.parse(text);
-      } catch {
-        parsed = {
-          diagnosis: "Could not extract structured diagnosis.",
-          treatment: text,
-          prevention: "Try rephrasing your input.",
-        };
-      }
+      try { parsed = JSON.parse(text); } 
+      catch { parsed = { diagnosis: "Could not extract structured diagnosis.", treatment: text, prevention: "Try rephrasing your input." }; }
 
-      function formatText(text) {
-        return text
-          .replace(/\n/g, "<br>")
-          .replace(/\d+\.\s/g, "<br><strong>$&</strong>")
-          .replace(/\-\s/g, "<br>• ");
-      }
+      function formatText(text) { return text.replace(/\n/g, "<br>").replace(/\d+\.\s/g, "<br><strong>$&</strong>").replace(/\-\s/g, "<br>• "); }
 
       resultDiv.innerHTML = `<div class="ai-card"><h3>Diagnosis</h3><p>${formatText(parsed.diagnosis)}</p></div>
         <div class="ai-card"><h3>Treatment</h3><p>${formatText(parsed.treatment)}</p></div>
         <div class="ai-card"><h3>Prevention</h3><p>${formatText(parsed.prevention)}</p></div>`;
 
-      // Update user count and send usage to Make
+      // Send usage event to Make
       user.diagnosisCount += 1;
       localStorage.setItem("myfishdoc_user", JSON.stringify(user));
       await sendWebhook("diagnosis_used", {
@@ -286,9 +259,7 @@ document.addEventListener("DOMContentLoaded", () => {
       document.getElementById("fcrResult").textContent = "Please enter valid values.";
       return;
     }
-
-    const fcr = feed / (final - initial);
-    document.getElementById("fcrResult").textContent = `FCR: ${fcr.toFixed(2)}`;
+    document.getElementById("fcrResult").textContent = `FCR: ${(feed / (final - initial)).toFixed(2)}`;
   });
 
   document.getElementById("calcFeedQty")?.addEventListener("click", () => {
@@ -313,7 +284,7 @@ document.addEventListener("DOMContentLoaded", () => {
     else if (age < 20) feedRate = 0.025;
     else feedRate = 0.015;
 
-    const totalFeed = (avgWeight * totalFish * feedRate).toFixed(2);
-    document.getElementById("feedQtyResult").textContent = `Feed Quantity: ${totalFeed} kg/day`;
+    document.getElementById("feedQtyResult").textContent = `Feed Quantity: ${(avgWeight * totalFish * feedRate).toFixed(2)} kg/day`;
   });
+
 });
