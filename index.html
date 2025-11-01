@@ -8,18 +8,19 @@
 </head>
 <body>
   <!-- Signup Modal -->
-<div id="signupModal" class="modal active">
-  <div class="modal-content">
-    <h2>🐟 Join MyFishDoc</h2>
-    <p>Smart Aquaculture Assistant — Diagnose, Record & Grow</p>
-    <input type="email" id="userEmail" placeholder="Enter your email" required />
-    <input type="text" id="referralCode" placeholder="Referral code (optional)" />
-    <button id="continueBtn">Continue</button>
-    <p class="tiny">By continuing, you agree to share your email for referral tracking.</p>
+  <div id="signupModal" class="modal active">
+    <div class="modal-content">
+      <h2>🐟 Join MyFishDoc</h2>
+      <p>Smart Aquaculture Assistant — Diagnose, Record & Grow</p>
+      <input type="email" id="userEmail" placeholder="Enter your email" required />
+      <input type="text" id="referralCode" placeholder="Referral code (optional)" />
+      <button id="continueBtn">Continue</button>
+      <p class="tiny">By continuing, you agree to share your email for referral tracking.</p>
+    </div>
   </div>
-</div>
 
-  <div class="container">
+  <!-- App Container (Hidden until signup completes) -->
+  <div id="appContainer" class="container hidden">
     <h1>🐟 MyFishDoc Online</h1>
     <p class="tagline">Smart Aquaculture Assistant — Diagnose, Record & Grow</p>
 
@@ -77,7 +78,6 @@
     <div class="tab-content" id="calculators">
       <h2>Calculators</h2>
       <div class="calc-container">
-
         <div class="calc-card">
           <h3>Feed Conversion Ratio (FCR)</h3>
           <input type="number" id="feedGiven" placeholder="Feed Given (kg)" />
@@ -115,15 +115,13 @@
   </div>
 
   <!-- ===== Footer ===== -->
-  <footer class="footer">
+  <footer class="footer hidden" id="appFooter">
     <p>💬 Need help? Chat with support on 
       <a href="https://wa.me/2347061629403" target="_blank">WhatsApp</a>
     </p>
     <p>&copy; 2025 MyFishDoc Online — All Rights Reserved</p>
   </footer>
 
-  <script src="https://js.paystack.co/v1/inline.js"></script>
   <script src="script.js"></script>
 </body>
 </html>
-
