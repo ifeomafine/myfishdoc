@@ -264,3 +264,49 @@ resultDiv.innerHTML = `
   });
 });
 
+// ========== CALCULATORS ==========
+// Feed Conversion Ratio (FCR)
+document.getElementById("calcFCR").addEventListener("click", () => {
+  const feed = parseFloat(document.getElementById("feedGiven").value);
+  const initial = parseFloat(document.getElementById("initialWeight").value);
+  const final = parseFloat(document.getElementById("finalWeight").value);
+
+  if (!feed || !initial || !final || final <= initial) {
+    return (document.getElementById("fcrResult").textContent =
+      "Please enter valid values.");
+  }
+
+  const fcr = feed / (final - initial);
+  document.getElementById("fcrResult").textContent = `FCR: ${fcr.toFixed(2)}`;
+});
+
+// Feed Quantity Calculator
+document.getElementById("calcFeedQty").addEventListener("click", () => {
+  const sampleCount = parseFloat(document.getElementById("sampleCount").value);
+  const sampleWeight = parseFloat(document.getElementById("sampleWeight").value);
+  const unit = document.getElementById("weightUnit").value;
+  const age = parseInt(document.getElementById("fishAge").value);
+  const totalFish = parseInt(document.getElementById("totalFishCount").value);
+
+  if (!sampleCount || !sampleWeight || !age || !totalFish) {
+    return (document.getElementById("feedQtyResult").textContent =
+      "Please enter all fields.");
+  }
+
+  let avgWeight = sampleWeight / sampleCount;
+  if (unit === "g") avgWeight /= 1000;
+
+  let feedRate = 0.05;
+  if (age < 4) feedRate = 0.08;
+  else if (age < 8) feedRate = 0.06;
+  else if (age < 12) feedRate = 0.04;
+  else if (age < 20) feedRate = 0.025;
+  else feedRate = 0.015;
+
+  const totalFeed = (avgWeight * totalFish * feedRate).toFixed(2);
+  document.getElementById(
+    "feedQtyResult"
+  ).textContent = `Feed Quantity: ${totalFeed} kg/day`;
+});
+
+
