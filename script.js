@@ -127,9 +127,15 @@ document.addEventListener("DOMContentLoaded", () => {
       tableBody.appendChild(row);
     });
 
-    document.getElementById("totalFish")?.textContent = totalFish;
-    document.getElementById("totalFeed")?.textContent = totalFeed.toFixed(1);
-    document.getElementById("totalExpense")?.textContent = totalExpense.toLocaleString();
+    // Fixed: cannot use optional chaining on assignment
+    const totalFishEl = document.getElementById("totalFish");
+    if (totalFishEl) totalFishEl.textContent = totalFish;
+
+    const totalFeedEl = document.getElementById("totalFeed");
+    if (totalFeedEl) totalFeedEl.textContent = totalFeed.toFixed(1);
+
+    const totalExpenseEl = document.getElementById("totalExpense");
+    if (totalExpenseEl) totalExpenseEl.textContent = totalExpense.toLocaleString();
 
     localStorage.setItem("farmRecords", JSON.stringify(records));
   }
