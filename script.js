@@ -8,7 +8,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   const MAKE_WEBHOOK_URL = "https://hook.eu2.make.com/nx13ilko39doy4w6cdo4e9mch2irl8uf";
 
-  // Auto-fill referral
+  // Auto-fill referral from URL
   const urlParams = new URLSearchParams(window.location.search);
   const refFromLink = urlParams.get("ref");
   if (refFromLink) referralInput.value = refFromLink;
@@ -23,6 +23,19 @@ document.addEventListener("DOMContentLoaded", () => {
 
   function generateUserId() {
     return "user_" + Math.random().toString(36).substring(2, 9);
+  }
+
+  async function sendWebhook(eventType, data) {
+    try {
+      const res = await fetch(MAKE_WEBHOOK_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ event: eventType, ...data }),
+      });
+      console.log(`Webhook sent: ${eventType}`, data, res.status);
+    } catch (err) {
+      console.error(`Webhook error (${eventType}):`, err);
+    }
   }
 
   // ===== SIGNUP BUTTON =====
@@ -44,26 +57,22 @@ document.addEventListener("DOMContentLoaded", () => {
 
     localStorage.setItem("myfishdoc_user", JSON.stringify(userData));
 
-    try {
-      await fetch(MAKE_WEBHOOK_URL, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ event: "signup", ...userData }),
+    // Send signup event
+    await sendWebhook("signup", userData);
+
+    // Send referral_used event if applicable
+    if (userData.referredBy) {
+      await sendWebhook("referral_used", {
+        referrer: userData.referredBy,
+        newUser: userData.email,
       });
 
-      if (userData.referredBy) {
-        await fetch(MAKE_WEBHOOK_URL, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            event: "referral_used",
-            referrer: userData.referredBy,
-            newUser: userData.email,
-          }),
-        });
+      // Increment referrer’s referralCount in localStorage if they exist
+      const referrerData = JSON.parse(localStorage.getItem(userData.referredBy));
+      if (referrerData) {
+        referrerData.referralCount = (referrerData.referralCount || 0) + 1;
+        localStorage.setItem(userData.referredBy, JSON.stringify(referrerData));
       }
-    } catch (err) {
-      console.error("Webhook error:", err);
     }
 
     signupModal?.classList.add("hidden");
@@ -127,7 +136,6 @@ document.addEventListener("DOMContentLoaded", () => {
       tableBody.appendChild(row);
     });
 
-    // Fixed: cannot use optional chaining on assignment
     const totalFishEl = document.getElementById("totalFish");
     if (totalFishEl) totalFishEl.textContent = totalFish;
 
@@ -234,8 +242,15 @@ document.addEventListener("DOMContentLoaded", () => {
       <div class="ai-card"><h3>Treatment</h3><p>${formatText(parsed.treatment)}</p></div>
       <div class="ai-card"><h3>Prevention</h3><p>${formatText(parsed.prevention)}</p></div>`;
 
+      // Update user count and send usage to Make
       user.diagnosisCount = (user.diagnosisCount || 0) + 1;
       localStorage.setItem("myfishdoc_user", JSON.stringify(user));
+      await sendWebhook("diagnosis_used", {
+        userId: user.userId,
+        email: user.email,
+        diagnosisCount: user.diagnosisCount,
+        inputSymptoms: input,
+      });
     } catch (err) {
       console.error("Claude API Error:", err);
       resultDiv.innerHTML = `<p style="color:red;">Error connecting to AI diagnosis.</p>`;
@@ -282,5 +297,4 @@ document.addEventListener("DOMContentLoaded", () => {
     const totalFeed = (avgWeight * totalFish * feedRate).toFixed(2);
     document.getElementById("feedQtyResult").textContent = `Feed Quantity: ${totalFeed} kg/day`;
   });
-
 });
