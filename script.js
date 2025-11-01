@@ -166,6 +166,17 @@ document.getElementById("diagnoseBtn").addEventListener("click", async () => {
 
     userData.diagnosisCount++;
     saveUserData();
+fetch(MAKE_WEBHOOK_URL, {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({
+    event: "usage_update",
+    userId: userData.referralId || "guest",
+    diagnosisCount: userData.diagnosisCount,
+    isPro: userData.isPro,
+    date: new Date().toISOString(),
+  }),
+});
 
   } catch (err) {
     console.error("Claude API Error:", err);
@@ -174,7 +185,7 @@ document.getElementById("diagnoseBtn").addEventListener("click", async () => {
 });
 
 // ========== REFERRAL + PAYSTACK + MAKE INTEGRATION ==========
-const MAKE_WEBHOOK_URL = "https://hook.eu1.make.com/your-make-webhook-id";
+const MAKE_WEBHOOK_URL = "https://hook.eu2.make.com/nx13ilko39doy4w6cdo4e9mch2irl8uf";
 
 // Handle referral via URL
 const params = new URLSearchParams(window.location.search);
@@ -201,7 +212,7 @@ function openPaystack(email) {
   btn.textContent = "Processing...";
 
   const handler = PaystackPop.setup({
-    key: "pk_live_9302b12dd3dadda9b9113e35f4478b1cf29fb998", // your Paystack public key (string)
+    key: "pk_test_dd056cfe734e3a011b3802eb0aef6f165e04d0a5", // your Paystack public key (string)
     email,
     amount: 150000, // ₦1,500
     currency: "NGN",
@@ -303,3 +314,4 @@ document.getElementById("calcFeedQty").addEventListener("click", () => {
   const totalFeed = (avgWeight * totalFish * feedRate).toFixed(2);
   document.getElementById("feedQtyResult").textContent = `Feed Quantity: ${totalFeed} kg/day`;
 });
+
