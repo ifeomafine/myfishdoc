@@ -19,18 +19,19 @@
     </div>
   </div>
 
-  <!-- App Container (Hidden until signup completes) -->
+  <!-- App Container -->
   <div id="appContainer" class="container hidden">
     <h1>🐟 MyFishDoc Online</h1>
     <p class="tagline">Smart Aquaculture Assistant — Diagnose, Record & Grow</p>
 
+    <!-- Tabs -->
     <div class="tabs">
       <button class="tab-button active" data-tab="records">Farm Records</button>
       <button class="tab-button" data-tab="diagnosis">AI Disease Diagnosis</button>
       <button class="tab-button" data-tab="calculators">Calculators</button>
     </div>
 
-    <!-- Farm Records Tab -->
+    <!-- Farm Records -->
     <div class="tab-content active" id="records">
       <div class="dashboard">
         <div class="dash-card"><h3>Total Fish</h3><p id="totalFish">0</p></div>
@@ -41,7 +42,7 @@
       <h2>Add Farm Record</h2>
       <form id="recordForm">
         <label for="date">Date</label>
-        <input type="date" id="date" required>
+        <input type="date" id="date" required />
         <input type="text" id="pondName" placeholder="Pond Name" required />
         <input type="number" id="fishCount" placeholder="Number of Fish" required />
         <input type="number" id="feedUsed" placeholder="Feed Used (kg)" required />
@@ -66,7 +67,7 @@
       </table>
     </div>
 
-    <!-- Diagnosis Tab -->
+    <!-- Diagnosis -->
     <div class="tab-content" id="diagnosis">
       <h2>AI Disease Diagnosis</h2>
       <textarea id="diseaseInput" placeholder="Describe fish symptoms..." rows="5"></textarea>
@@ -74,7 +75,7 @@
       <div id="diagnosisResult"></div>
     </div>
 
-    <!-- Calculators Tab -->
+    <!-- Calculators -->
     <div class="tab-content" id="calculators">
       <h2>Calculators</h2>
       <div class="calc-container">
@@ -101,20 +102,10 @@
           <p id="feedQtyResult"></p>
         </div>
       </div>
-
-      <div class="guide">
-        <h3>Quick Reference Guide</h3>
-        <ul>
-          <li><b>Good FCR Range:</b> 1.0 - 1.8 (lower is better)</li>
-          <li><b>Feeding Frequency:</b> 2 times per day (preferably)</li>
-          <li><b>Water Temperature:</b> 26°C – 32°C</li>
-          <li><b>Dissolved Oxygen:</b> Minimum 3–4 mg/L</li>
-        </ul>
-      </div>
     </div>
   </div>
 
-  <!-- ===== Footer ===== -->
+  <!-- Footer -->
   <footer class="footer hidden" id="appFooter">
     <p>💬 Need help? Chat with support on 
       <a href="https://wa.me/2347061629403" target="_blank">WhatsApp</a>
@@ -122,6 +113,6 @@
     <p>&copy; 2025 MyFishDoc Online — All Rights Reserved</p>
   </footer>
 
-  <script src="script.js"></script>
+  <script src="script.js" defer></script>
 </body>
 </html>
