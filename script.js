@@ -1,3 +1,4 @@
+<script>
 // ========== TAB SWITCHING ==========
 const tabButtons = document.querySelectorAll(".tab-button");
 const tabContents = document.querySelectorAll(".tab-content");
@@ -20,6 +21,7 @@ let userData = JSON.parse(localStorage.getItem("userData")) || {
   referralId: null,
   userId: null,
 };
+
 const saveUserData = () => localStorage.setItem("userData", JSON.stringify(userData));
 
 // Assign userId automatically if missing
@@ -89,8 +91,7 @@ form.addEventListener("submit", e => {
   records.push(newRecord);
   renderRecords();
   form.reset();
-  const today = new Date().toISOString().split("T")[0];
-  form.date.value = today;
+  form.date.value = new Date().toISOString().split("T")[0];
 });
 
 function deleteRecord(index) {
@@ -116,9 +117,20 @@ document.addEventListener("DOMContentLoaded", () => {
 
 renderRecords();
 
-// ========== AI DISEASE DIAGNOSIS ==========
+// ========== MAKE WEBHOOK ==========
 const MAKE_WEBHOOK_URL = "https://hook.eu2.make.com/nx13ilko39doy4w6cdo4e9mch2irl8uf";
 
+// Helper to send to Make
+function sendToMake(eventType, payload = {}) {
+  console.log("🔥 Sending to Make:", eventType, payload);
+  fetch(MAKE_WEBHOOK_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ event: eventType, ...payload }),
+  }).catch(err => console.error("❌ Make webhook error:", err));
+}
+
+// ========== AI DISEASE DIAGNOSIS ==========
 document.getElementById("diagnoseBtn").addEventListener("click", async () => {
   const input = document.getElementById("diseaseInput").value.trim();
   const resultDiv = document.getElementById("diagnosisResult");
@@ -177,17 +189,12 @@ document.getElementById("diagnoseBtn").addEventListener("click", async () => {
     userData.diagnosisCount++;
     saveUserData();
 
-    // Log usage to Make
-    fetch(MAKE_WEBHOOK_URL, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        event: "usage_update",
-        userId: userData.userId,
-        diagnosisCount: userData.diagnosisCount,
-        isPro: userData.isPro,
-        date: new Date().toISOString(),
-      }),
+    // Log usage
+    sendToMake("usage_update", {
+      userId: userData.userId,
+      diagnosisCount: userData.diagnosisCount,
+      isPro: userData.isPro,
+      date: new Date().toISOString(),
     });
 
   } catch (err) {
@@ -196,7 +203,7 @@ document.getElementById("diagnoseBtn").addEventListener("click", async () => {
   }
 });
 
-// ========== REFERRAL + PAYSTACK + MAKE INTEGRATION ==========
+// ========== REFERRAL + PAYSTACK ==========
 
 // Handle referral via URL
 const params = new URLSearchParams(window.location.search);
@@ -204,10 +211,10 @@ const ref = params.get("ref");
 if (ref && ref !== userData.userId) {
   userData.referredBy = ref;
   saveUserData();
-  fetch(MAKE_WEBHOOK_URL, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ event: "referral", referred_by: ref, newUserId: userData.userId, date: new Date().toISOString() }),
+  sendToMake("referral", {
+    referred_by: ref,
+    newUserId: userData.userId,
+    date: new Date().toISOString(),
   });
 }
 
@@ -228,23 +235,20 @@ function openPaystack(email) {
     amount: 150000,
     currency: "NGN",
     callback: response => {
+      console.log("✅ Paystack callback triggered:", response);
       alert("✅ Payment successful! You now have unlimited access.");
       userData.isPro = true;
       userData.paymentRef = response.reference;
       userData.upgradeDate = new Date().toISOString();
       saveUserData();
 
-      fetch(MAKE_WEBHOOK_URL, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          event: "payment_success",
-          email,
-          reference: response.reference,
-          userId: userData.userId,
-          date: new Date().toISOString(),
-        }),
+      sendToMake("payment_success", {
+        email,
+        reference: response.reference,
+        userId: userData.userId,
+        date: new Date().toISOString(),
       });
+
       location.reload();
     },
     onClose: () => {
@@ -266,10 +270,10 @@ function handleReferral() {
   navigator.clipboard.writeText(link);
   alert(`✅ Your referral link copied!\n${link}\n\nRefer 3 users to unlock 1-month Pro access.`);
 
-  fetch(MAKE_WEBHOOK_URL, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ event: "referral_shared", referralId, userId: userData.userId, date: new Date().toISOString() }),
+  sendToMake("referral_shared", {
+    referralId,
+    userId: userData.userId,
+    date: new Date().toISOString(),
   });
 }
 
@@ -326,3 +330,4 @@ document.getElementById("calcFeedQty").addEventListener("click", () => {
   const totalFeed = (avgWeight * totalFish * feedRate).toFixed(2);
   document.getElementById("feedQtyResult").textContent = `Feed Quantity: ${totalFeed} kg/day`;
 });
+</script>
