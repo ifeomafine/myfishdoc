@@ -17,8 +17,16 @@ let userData = JSON.parse(localStorage.getItem("userData")) || {
   diagnosisCount: 0,
   referralCount: 0,
   lastReset: new Date().toISOString().split("T")[0],
+  referralId: null,
+  userId: null,
 };
 const saveUserData = () => localStorage.setItem("userData", JSON.stringify(userData));
+
+// Assign userId automatically if missing
+if (!userData.userId) {
+  userData.userId = "U" + Math.random().toString(36).substring(2, 10);
+  saveUserData();
+}
 
 // Reset weekly limit every Monday
 (function resetWeeklyLimit() {
@@ -109,6 +117,8 @@ document.addEventListener("DOMContentLoaded", () => {
 renderRecords();
 
 // ========== AI DISEASE DIAGNOSIS ==========
+const MAKE_WEBHOOK_URL = "https://hook.eu2.make.com/nx13ilko39doy4w6cdo4e9mch2irl8uf";
+
 document.getElementById("diagnoseBtn").addEventListener("click", async () => {
   const input = document.getElementById("diseaseInput").value.trim();
   const resultDiv = document.getElementById("diagnosisResult");
@@ -166,17 +176,19 @@ document.getElementById("diagnoseBtn").addEventListener("click", async () => {
 
     userData.diagnosisCount++;
     saveUserData();
-fetch(MAKE_WEBHOOK_URL, {
-  method: "POST",
-  headers: { "Content-Type": "application/json" },
-  body: JSON.stringify({
-    event: "usage_update",
-    userId: userData.referralId || "guest",
-    diagnosisCount: userData.diagnosisCount,
-    isPro: userData.isPro,
-    date: new Date().toISOString(),
-  }),
-});
+
+    // Log usage to Make
+    fetch(MAKE_WEBHOOK_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        event: "usage_update",
+        userId: userData.userId,
+        diagnosisCount: userData.diagnosisCount,
+        isPro: userData.isPro,
+        date: new Date().toISOString(),
+      }),
+    });
 
   } catch (err) {
     console.error("Claude API Error:", err);
@@ -185,18 +197,17 @@ fetch(MAKE_WEBHOOK_URL, {
 });
 
 // ========== REFERRAL + PAYSTACK + MAKE INTEGRATION ==========
-const MAKE_WEBHOOK_URL = "https://hook.eu2.make.com/nx13ilko39doy4w6cdo4e9mch2irl8uf";
 
 // Handle referral via URL
 const params = new URLSearchParams(window.location.search);
 const ref = params.get("ref");
-if (ref) {
+if (ref && ref !== userData.userId) {
   userData.referredBy = ref;
   saveUserData();
   fetch(MAKE_WEBHOOK_URL, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ event: "referral", referred_by: ref, date: new Date().toISOString() }),
+    body: JSON.stringify({ event: "referral", referred_by: ref, newUserId: userData.userId, date: new Date().toISOString() }),
   });
 }
 
@@ -212,9 +223,9 @@ function openPaystack(email) {
   btn.textContent = "Processing...";
 
   const handler = PaystackPop.setup({
-    key: "pk_test_dd056cfe734e3a011b3802eb0aef6f165e04d0a5", // your Paystack public key (string)
+    key: "pk_test_dd056cfe734e3a011b3802eb0aef6f165e04d0a5",
     email,
-    amount: 150000, // ₦1,500
+    amount: 150000,
     currency: "NGN",
     callback: response => {
       alert("✅ Payment successful! You now have unlimited access.");
@@ -230,6 +241,7 @@ function openPaystack(email) {
           event: "payment_success",
           email,
           reference: response.reference,
+          userId: userData.userId,
           date: new Date().toISOString(),
         }),
       });
@@ -247,7 +259,7 @@ function openPaystack(email) {
 
 // Referral handler
 function handleReferral() {
-  const referralId = userData.referralId || Math.random().toString(36).substring(2, 8);
+  const referralId = userData.referralId || userData.userId;
   userData.referralId = referralId;
   saveUserData();
   const link = `${window.location.origin}?ref=${referralId}`;
@@ -257,7 +269,7 @@ function handleReferral() {
   fetch(MAKE_WEBHOOK_URL, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ event: "referral_shared", referralId, date: new Date().toISOString() }),
+    body: JSON.stringify({ event: "referral_shared", referralId, userId: userData.userId, date: new Date().toISOString() }),
   });
 }
 
@@ -314,4 +326,3 @@ document.getElementById("calcFeedQty").addEventListener("click", () => {
   const totalFeed = (avgWeight * totalFish * feedRate).toFixed(2);
   document.getElementById("feedQtyResult").textContent = `Feed Quantity: ${totalFeed} kg/day`;
 });
-
