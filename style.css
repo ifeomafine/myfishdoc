@@ -319,6 +319,35 @@ button:hover {
   background: #005dc1;
 }
 
+.hidden {
+  display: none !important;
+}
+
+.modal.active {
+  display: flex;
+}
+
+.modal {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0,0,0,0.4);
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.modal-content {
+  background: #fff;
+  padding: 2em;
+  border-radius: 12px;
+  text-align: center;
+  width: 90%;
+  max-width: 400px;
+}
+
 /* === Responsive === */
 @media (max-width: 700px) {
   .dashboard, .calc-container {
@@ -333,4 +362,5 @@ button:hover {
     font-size: 13px;
   }
 }
+
 
