@@ -1,5 +1,6 @@
-// ====== SIGNUP & REFERRAL LOGIC ======
+// ====== MYFISHDOC APP SCRIPT ======
 document.addEventListener("DOMContentLoaded", () => {
+  // ====== DOM ELEMENTS ======
   const continueBtn = document.getElementById("continueBtn");
   const emailInput = document.getElementById("userEmail");
   const referralInput = document.getElementById("referralCode");
@@ -9,25 +10,25 @@ document.addEventListener("DOMContentLoaded", () => {
 
   const MAKE_WEBHOOK_URL = "https://hook.eu2.make.com/nx13ilko39doy4w6cdo4e9mch2irl8uf";
 
-  // Auto-fill referral code from ?ref= param
+  // ====== AUTO-FILL REFERRAL ======
   const urlParams = new URLSearchParams(window.location.search);
   const refFromLink = urlParams.get("ref");
   if (refFromLink) referralInput.value = refFromLink;
 
-  // Check if user already signed up (stored locally)
+  // ====== CHECK LOCAL SIGNUP ======
   const savedUser = JSON.parse(localStorage.getItem("myfishdoc_user"));
   if (savedUser) {
-    signupModal.classList.add("hidden");
-    appContainer.classList.remove("hidden");
-    footer.classList.remove("hidden");
+    signupModal?.classList.add("hidden");
+    appContainer?.classList.remove("hidden");
+    footer?.classList.remove("hidden");
   }
 
   function generateUserId() {
     return "user_" + Math.random().toString(36).substring(2, 9);
   }
 
-  // Handle Continue button
-  continueBtn.addEventListener("click", async () => {
+  // ====== SIGNUP BUTTON ======
+  continueBtn?.addEventListener("click", async () => {
     const email = emailInput.value.trim();
     const referralCode = referralInput.value.trim();
 
@@ -46,18 +47,14 @@ document.addEventListener("DOMContentLoaded", () => {
       createdAt: new Date().toISOString(),
     };
 
-    // Save locally
     localStorage.setItem("myfishdoc_user", JSON.stringify(userData));
 
-    // Send signup data to Make
+    // Send to Make webhook
     try {
       await fetch(MAKE_WEBHOOK_URL, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          event: "signup",
-          ...userData,
-        }),
+        body: JSON.stringify({ event: "signup", ...userData }),
       });
 
       if (userData.referredBy) {
@@ -75,10 +72,9 @@ document.addEventListener("DOMContentLoaded", () => {
       console.error("Webhook error:", err);
     }
 
-    // Hide modal, show app
-    signupModal.classList.add("hidden");
-    appContainer.classList.remove("hidden");
-    footer.classList.remove("hidden");
+    signupModal?.classList.add("hidden");
+    appContainer?.classList.remove("hidden");
+    footer?.classList.remove("hidden");
 
     alert("Welcome to MyFishDoc! Your account has been created.");
   });
@@ -91,7 +87,7 @@ document.addEventListener("DOMContentLoaded", () => {
       tabButtons.forEach(btn => btn.classList.remove("active"));
       tabContents.forEach(tab => tab.classList.remove("active"));
       button.classList.add("active");
-      document.getElementById(button.dataset.tab).classList.add("active");
+      document.getElementById(button.dataset.tab)?.classList.add("active");
     });
   });
 
@@ -106,6 +102,10 @@ document.addEventListener("DOMContentLoaded", () => {
     navigator.clipboard.writeText(referralLink);
     alert(`Referral link copied!\n\n${referralLink}\n\nShare this with friends.`);
   }
+
+  document.addEventListener("click", e => {
+    if (e.target.id === "referBtn") handleReferral();
+  });
 
   // ====== FARM RECORDS ======
   const form = document.getElementById("recordForm");
@@ -138,9 +138,9 @@ document.addEventListener("DOMContentLoaded", () => {
       tableBody.appendChild(row);
     });
 
-    document.getElementById("totalFish").textContent = totalFish;
-    document.getElementById("totalFeed").textContent = totalFeed.toFixed(1);
-    document.getElementById("totalExpense").textContent = totalExpense.toLocaleString();
+    document.getElementById("totalFish")?.textContent = totalFish;
+    document.getElementById("totalFeed")?.textContent = totalFeed.toFixed(1);
+    document.getElementById("totalExpense")?.textContent = totalExpense.toLocaleString();
 
     localStorage.setItem("farmRecords", JSON.stringify(records));
   }
@@ -212,7 +212,7 @@ document.addEventListener("DOMContentLoaded", () => {
           messages: [
             {
               role: "user",
-              content: `You are an aquaculture expert with over 20 years of experience and abreast with researches happening all over the world in the aquaculture space. Based on this description: "${input}", identify the likely fish disease, recommend treatment, and prevention steps. Format strictly as JSON with keys: diagnosis, treatment, prevention.`,
+              content: `You are an aquaculture expert with over 20 years of experience. Based on this description: "${input}", identify the likely fish disease, recommend treatment, and prevention steps. Format strictly as JSON with keys: diagnosis, treatment, prevention.`,
             },
           ],
         }),
@@ -233,23 +233,18 @@ document.addEventListener("DOMContentLoaded", () => {
         };
       }
 
-     // resultDiv.innerHTML = `
-      //  <div class="ai-card"><h3>Diagnosis</h3><p>${parsed.diagnosis}</p></div>
-      //  <div class="ai-card"><h3>Treatment</h3><p>${parsed.treatment}</p></div>
-      //  <div class="ai-card"><h3>Prevention</h3><p>${parsed.prevention}</p></div>
-      `;//
-function formatText(text) {
-  return text
-    .replace(/\n/g, "<br>") // Preserve line breaks
-    .replace(/\d+\.\s/g, "<br><strong>$&</strong>") // Bold numbered points
-    .replace(/\-\s/g, "<br>• "); // Convert dashes to bullet points
-}
+      function formatText(text) {
+        return text
+          .replace(/\n/g, "<br>")
+          .replace(/\d+\.\s/g, "<br><strong>$&</strong>")
+          .replace(/\-\s/g, "<br>• ");
+      }
 
-resultDiv.innerHTML = `
-  <div class="ai-card"><h3>Diagnosis</h3><p>${formatText(parsed.diagnosis)}</p></div>
-  <div class="ai-card"><h3>Treatment</h3><p>${formatText(parsed.treatment)}</p></div>
-  <div class="ai-card"><h3>Prevention</h3><p>${formatText(parsed.prevention)}</p></div>
-`;
+      resultDiv.innerHTML = `
+        <div class="ai-card"><h3>Diagnosis</h3><p>${formatText(parsed.diagnosis)}</p></div>
+        <div class="ai-card"><h3>Treatment</h3><p>${formatText(parsed.treatment)}</p></div>
+        <div class="ai-card"><h3>Prevention</h3><p>${formatText(parsed.prevention)}</p></div>
+      `;
 
       user.diagnosisCount = (user.diagnosisCount || 0) + 1;
       localStorage.setItem("myfishdoc_user", JSON.stringify(user));
@@ -259,54 +254,45 @@ resultDiv.innerHTML = `
     }
   });
 
-  document.addEventListener("click", e => {
-    if (e.target.id === "referBtn") handleReferral();
+  // ====== CALCULATORS ==========
+  document.getElementById("calcFCR")?.addEventListener("click", () => {
+    const feed = parseFloat(document.getElementById("feedGiven").value);
+    const initial = parseFloat(document.getElementById("initialWeight").value);
+    const final = parseFloat(document.getElementById("finalWeight").value);
+
+    if (!feed || !initial || !final || final <= initial) {
+      document.getElementById("fcrResult").textContent = "Please enter valid values.";
+      return;
+    }
+
+    const fcr = feed / (final - initial);
+    document.getElementById("fcrResult").textContent = `FCR: ${fcr.toFixed(2)}`;
   });
-});
 
-// ========== CALCULATORS ==========
-// Feed Conversion Ratio (FCR)
-document.getElementById("calcFCR").addEventListener("click", () => {
-  const feed = parseFloat(document.getElementById("feedGiven").value);
-  const initial = parseFloat(document.getElementById("initialWeight").value);
-  const final = parseFloat(document.getElementById("finalWeight").value);
+  document.getElementById("calcFeedQty")?.addEventListener("click", () => {
+    const sampleCount = parseFloat(document.getElementById("sampleCount").value);
+    const sampleWeight = parseFloat(document.getElementById("sampleWeight").value);
+    const unit = document.getElementById("weightUnit").value;
+    const age = parseInt(document.getElementById("fishAge").value);
+    const totalFish = parseInt(document.getElementById("totalFishCount").value);
 
-  if (!feed || !initial || !final || final <= initial) {
-    return (document.getElementById("fcrResult").textContent =
-      "Please enter valid values.");
-  }
+    if (!sampleCount || !sampleWeight || !age || !totalFish) {
+      document.getElementById("feedQtyResult").textContent = "Please enter all fields.";
+      return;
+    }
 
-  const fcr = feed / (final - initial);
-  document.getElementById("fcrResult").textContent = `FCR: ${fcr.toFixed(2)}`;
-});
+    let avgWeight = sampleWeight / sampleCount;
+    if (unit === "g") avgWeight /= 1000;
 
-// Feed Quantity Calculator
-document.getElementById("calcFeedQty").addEventListener("click", () => {
-  const sampleCount = parseFloat(document.getElementById("sampleCount").value);
-  const sampleWeight = parseFloat(document.getElementById("sampleWeight").value);
-  const unit = document.getElementById("weightUnit").value;
-  const age = parseInt(document.getElementById("fishAge").value);
-  const totalFish = parseInt(document.getElementById("totalFishCount").value);
+    let feedRate = 0.05;
+    if (age < 4) feedRate = 0.08;
+    else if (age < 8) feedRate = 0.06;
+    else if (age < 12) feedRate = 0.04;
+    else if (age < 20) feedRate = 0.025;
+    else feedRate = 0.015;
 
-  if (!sampleCount || !sampleWeight || !age || !totalFish) {
-    return (document.getElementById("feedQtyResult").textContent =
-      "Please enter all fields.");
-  }
+    const totalFeed = (avgWeight * totalFish * feedRate).toFixed(2);
+    document.getElementById("feedQtyResult").textContent = `Feed Quantity: ${totalFeed} kg/day`;
+  });
 
-  let avgWeight = sampleWeight / sampleCount;
-  if (unit === "g") avgWeight /= 1000;
-
-  let feedRate = 0.05;
-  if (age < 4) feedRate = 0.08;
-  else if (age < 8) feedRate = 0.06;
-  else if (age < 12) feedRate = 0.04;
-  else if (age < 20) feedRate = 0.025;
-  else feedRate = 0.015;
-
-  const totalFeed = (avgWeight * totalFish * feedRate).toFixed(2);
-  document.getElementById(
-    "feedQtyResult"
-  ).textContent = `Feed Quantity: ${totalFeed} kg/day`;
-});
-
-
+}); // End of DOMContentLoaded
