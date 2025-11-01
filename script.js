@@ -67,10 +67,17 @@ document.addEventListener("DOMContentLoaded", () => {
         newUser: userData.email,
       });
 
-      // Increment referrer’s referralCount in localStorage if they exist
+      // Increment referrer’s referralCount and upgrade to Pro if needed
       const referrerData = JSON.parse(localStorage.getItem(userData.referredBy));
       if (referrerData) {
         referrerData.referralCount = (referrerData.referralCount || 0) + 1;
+
+        if (!referrerData.isPro && referrerData.referralCount >= 3) {
+          referrerData.isPro = true;
+          alert(`${referrerData.email} is now a Pro user! Unlimited AI access unlocked.`);
+          await sendWebhook("pro_upgrade", { userId: referrerData.userId, email: referrerData.email });
+        }
+
         localStorage.setItem(userData.referredBy, JSON.stringify(referrerData));
       }
     }
@@ -192,6 +199,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     if (!input) { alert("Please describe the fish symptoms."); return; }
 
+    // Check free limit and Pro status
     if (!user.isPro && (user.diagnosisCount || 0) >= 2) {
       resultDiv.innerHTML = `<p style="color:red;">Free limit reached (2 per week).<br> Invite 3 users to unlock unlimited access.</p>
       <button id="referBtn" class="refer-btn">Refer Friends</button>`;
