@@ -1,6 +1,4 @@
-// ====== MYFISHDOC APP SCRIPT ======
 document.addEventListener("DOMContentLoaded", () => {
-  // ====== DOM ELEMENTS ======
   const continueBtn = document.getElementById("continueBtn");
   const emailInput = document.getElementById("userEmail");
   const referralInput = document.getElementById("referralCode");
@@ -10,12 +8,12 @@ document.addEventListener("DOMContentLoaded", () => {
 
   const MAKE_WEBHOOK_URL = "https://hook.eu2.make.com/nx13ilko39doy4w6cdo4e9mch2irl8uf";
 
-  // ====== AUTO-FILL REFERRAL ======
+  // Auto-fill referral
   const urlParams = new URLSearchParams(window.location.search);
   const refFromLink = urlParams.get("ref");
   if (refFromLink) referralInput.value = refFromLink;
 
-  // ====== CHECK LOCAL SIGNUP ======
+  // Check local signup
   const savedUser = JSON.parse(localStorage.getItem("myfishdoc_user"));
   if (savedUser) {
     signupModal?.classList.add("hidden");
@@ -27,15 +25,12 @@ document.addEventListener("DOMContentLoaded", () => {
     return "user_" + Math.random().toString(36).substring(2, 9);
   }
 
-  // ====== SIGNUP BUTTON ======
+  // ===== SIGNUP BUTTON =====
   continueBtn?.addEventListener("click", async () => {
     const email = emailInput.value.trim();
     const referralCode = referralInput.value.trim();
 
-    if (!email) {
-      alert("Please enter your email.");
-      return;
-    }
+    if (!email) { alert("Please enter your email."); return; }
 
     const userData = {
       userId: generateUserId(),
@@ -49,7 +44,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
     localStorage.setItem("myfishdoc_user", JSON.stringify(userData));
 
-    // Send to Make webhook
     try {
       await fetch(MAKE_WEBHOOK_URL, {
         method: "POST",
@@ -79,7 +73,7 @@ document.addEventListener("DOMContentLoaded", () => {
     alert("Welcome to MyFishDoc! Your account has been created.");
   });
 
-  // ====== TAB SWITCHING ======
+  // ===== TAB SWITCHING =====
   const tabButtons = document.querySelectorAll(".tab-button");
   const tabContents = document.querySelectorAll(".tab-content");
   tabButtons.forEach(button => {
@@ -91,13 +85,10 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   });
 
-  // ====== REFERRAL SHARING ======
+  // ===== REFERRAL =====
   function handleReferral() {
     const user = JSON.parse(localStorage.getItem("myfishdoc_user"));
-    if (!user) {
-      alert("Please sign up first.");
-      return;
-    }
+    if (!user) { alert("Please sign up first."); return; }
     const referralLink = `${window.location.origin}?ref=${user.userId}`;
     navigator.clipboard.writeText(referralLink);
     alert(`Referral link copied!\n\n${referralLink}\n\nShare this with friends.`);
@@ -107,16 +98,14 @@ document.addEventListener("DOMContentLoaded", () => {
     if (e.target.id === "referBtn") handleReferral();
   });
 
-  // ====== FARM RECORDS ======
+  // ===== FARM RECORDS =====
   const form = document.getElementById("recordForm");
   const tableBody = document.querySelector("#recordsTable tbody");
   let records = JSON.parse(localStorage.getItem("farmRecords")) || [];
 
   function renderRecords() {
     tableBody.innerHTML = "";
-    let totalFish = 0,
-      totalFeed = 0,
-      totalExpense = 0;
+    let totalFish = 0, totalFeed = 0, totalExpense = 0;
 
     records.forEach((r, i) => {
       totalFish += parseInt(r.fishCount) || 0;
@@ -180,23 +169,18 @@ document.addEventListener("DOMContentLoaded", () => {
 
   renderRecords();
 
-  // ====== AI DISEASE DIAGNOSIS ======
+  // ===== AI DISEASE DIAGNOSIS =====
   const diagnoseBtn = document.getElementById("diagnoseBtn");
   diagnoseBtn?.addEventListener("click", async () => {
     const input = document.getElementById("diseaseInput").value.trim();
     const resultDiv = document.getElementById("diagnosisResult");
     const user = JSON.parse(localStorage.getItem("myfishdoc_user"));
 
-    if (!input) {
-      alert("Please describe the fish symptoms.");
-      return;
-    }
+    if (!input) { alert("Please describe the fish symptoms."); return; }
 
     if (!user.isPro && (user.diagnosisCount || 0) >= 2) {
-      resultDiv.innerHTML = `
-        <p style="color:red;">Free limit reached (2 per week).<br>
-        Invite 3 users to unlock unlimited access.</p>
-        <button id="referBtn" class="refer-btn">Refer Friends</button>`;
+      resultDiv.innerHTML = `<p style="color:red;">Free limit reached (2 per week).<br> Invite 3 users to unlock unlimited access.</p>
+      <button id="referBtn" class="refer-btn">Refer Friends</button>`;
       return;
     }
 
@@ -240,11 +224,9 @@ document.addEventListener("DOMContentLoaded", () => {
           .replace(/\-\s/g, "<br>• ");
       }
 
-      resultDiv.innerHTML = `
-        <div class="ai-card"><h3>Diagnosis</h3><p>${formatText(parsed.diagnosis)}</p></div>
-        <div class="ai-card"><h3>Treatment</h3><p>${formatText(parsed.treatment)}</p></div>
-        <div class="ai-card"><h3>Prevention</h3><p>${formatText(parsed.prevention)}</p></div>
-      `;
+      resultDiv.innerHTML = `<div class="ai-card"><h3>Diagnosis</h3><p>${formatText(parsed.diagnosis)}</p></div>
+      <div class="ai-card"><h3>Treatment</h3><p>${formatText(parsed.treatment)}</p></div>
+      <div class="ai-card"><h3>Prevention</h3><p>${formatText(parsed.prevention)}</p></div>`;
 
       user.diagnosisCount = (user.diagnosisCount || 0) + 1;
       localStorage.setItem("myfishdoc_user", JSON.stringify(user));
@@ -254,7 +236,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 
-  // ====== CALCULATORS ==========
+  // ===== CALCULATORS =====
   document.getElementById("calcFCR")?.addEventListener("click", () => {
     const feed = parseFloat(document.getElementById("feedGiven").value);
     const initial = parseFloat(document.getElementById("initialWeight").value);
@@ -295,4 +277,4 @@ document.addEventListener("DOMContentLoaded", () => {
     document.getElementById("feedQtyResult").textContent = `Feed Quantity: ${totalFeed} kg/day`;
   });
 
-}); // End of DOMContentLoaded
+});
