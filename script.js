@@ -1,4 +1,4 @@
-document.addEventListener("DOMContentLoaded", () => {
+document.addEventListener("DOMContentLoaded", async () => {
   // ========== TAB SWITCHING ==========
   const tabButtons = document.querySelectorAll(".tab-button");
   const tabContents = document.querySelectorAll(".tab-content");
@@ -12,26 +12,60 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   });
 
-  // ========== LOCAL USER DATA ==========
-  let userData = JSON.parse(localStorage.getItem("userData")) || {
-    isPro: false,
-    diagnosisCount: 0,
-    referralCount: 0,
-    lastReset: new Date().toISOString().split("T")[0],
-  };
-  const saveUserData = () => localStorage.setItem("userData", JSON.stringify(userData));
+  // ========== MAKE WEBHOOK URL ==========
+  const MAKE_WEBHOOK_URL = "https://hook.eu2.make.com/nx13ilko39doy4w6cdo4e9mch2irl8uf";
 
-  // Reset weekly limit every Monday
-  (function resetWeeklyLimit() {
-    const today = new Date();
-    const last = new Date(userData.lastReset);
-    const days = (today - last) / (1000 * 60 * 60 * 24);
-    if (days > 7) {
-      userData.diagnosisCount = 0;
-      userData.lastReset = today.toISOString().split("T")[0];
-      saveUserData();
+  // ========== USER DATA & REFERRAL SETUP ==========
+  let userData = JSON.parse(localStorage.getItem("userData")) || null;
+  const urlParams = new URLSearchParams(window.location.search);
+  const ref = urlParams.get("ref");
+
+  function generateUserId() {
+    return "user_" + Math.random().toString(36).substring(2, 9);
+  }
+
+  async function sendToWebhook(payload) {
+    try {
+      await fetch(MAKE_WEBHOOK_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      console.log("✅ Sent to webhook:", payload);
+    } catch (err) {
+      console.error("Webhook error:", err);
     }
-  })();
+  }
+
+  async function initUser() {
+    if (!userData) {
+      const email = prompt("Enter your email to get started:");
+      if (!email) {
+        alert("Email required to continue");
+        return;
+      }
+
+      userData = {
+        userId: generateUserId(),
+        email,
+        isPro: false,
+        referralCount: 0,
+        referredBy: ref || null,
+        createdAt: new Date().toISOString(),
+      };
+
+      localStorage.setItem("userData", JSON.stringify(userData));
+      await sendToWebhook({
+        event: "signup",
+        userId: userData.userId,
+        email: userData.email,
+        referredBy: userData.referredBy,
+        date: new Date().toISOString(),
+      });
+    }
+  }
+
+  await initUser();
 
   // ========== FARM RECORDS ==========
   const form = document.getElementById("recordForm");
@@ -77,12 +111,11 @@ document.addEventListener("DOMContentLoaded", () => {
       fishCount: form.fishCount.value,
       feedUsed: form.feedUsed.value,
       expense: form.expense.value,
-      notes: form.notes.value
+      notes: form.notes.value,
     };
     records.push(newRecord);
     renderRecords();
     form.reset();
-    form.date.value = new Date().toISOString().split("T")[0];
   });
 
   tableBody.addEventListener("click", e => {
@@ -115,11 +148,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if (!userData.isPro && userData.diagnosisCount >= 2) {
       resultDiv.innerHTML = `
         <p style="color:red;">Free limit reached (2 diagnoses/week). 
-        <br>Upgrade to Pro for unlimited access or refer 3 users for 1 month free.</p>
-        <div class="upgrade-inline">
-          <input type="email" id="upgradeEmail" placeholder="Enter your email" required />
-          <button id="continuePaystack" class="upgrade-btn">Pay N1,500 to Upgrade</button>
-        </div>
+        <br>Invite 3 users via your referral link for unlimited access.</p>
         <button id="referBtn" class="refer-btn">Refer Friends</button>`;
       return;
     }
@@ -137,10 +166,10 @@ document.addEventListener("DOMContentLoaded", () => {
             {
               role: "user",
               content: `You are an aquaculture expert. Based on this description: "${input}", identify the likely fish disease, recommend treatment, and give prevention steps. 
-              Format your response strictly as a JSON object with keys: diagnosis, treatment, prevention.`
-            }
-          ]
-        })
+              Format your response strictly as a JSON object with keys: diagnosis, treatment, prevention.`,
+            },
+          ],
+        }),
       });
 
       const data = await response.json();
@@ -151,104 +180,52 @@ document.addEventListener("DOMContentLoaded", () => {
       try {
         parsed = JSON.parse(text);
       } catch {
-        parsed = { diagnosis: "Could not extract structured diagnosis.", treatment: text, prevention: "Try rephrasing or adding more detail." };
+        parsed = {
+          diagnosis: "Could not extract structured diagnosis.",
+          treatment: text,
+          prevention: "Try rephrasing or adding more detail.",
+        };
       }
-
-      const formatMultiline = str => str.replace(/\d+\)/g, match => `<br><strong>${match}</strong>`);
 
       resultDiv.innerHTML = `
         <div class="ai-card"><h3>Diagnosis</h3><p>${parsed.diagnosis}</p></div>
-        <div class="ai-card"><h3>Treatment</h3><p>${formatMultiline(parsed.treatment)}</p></div>
-        <div class="ai-card"><h3>Prevention</h3><p>${formatMultiline(parsed.prevention)}</p></div>
-        ${userData.isPro ? `<button id="saveDiagnosisBtn" class="save-btn">💾 Save This Diagnosis</button>` : ""}
+        <div class="ai-card"><h3>Treatment</h3><p>${parsed.treatment}</p></div>
+        <div class="ai-card"><h3>Prevention</h3><p>${parsed.prevention}</p></div>
       `;
 
-      userData.diagnosisCount++;
-      saveUserData();
+      userData.diagnosisCount = (userData.diagnosisCount || 0) + 1;
+      localStorage.setItem("userData", JSON.stringify(userData));
     } catch (err) {
       console.error("Claude API Error:", err);
       resultDiv.innerHTML = `<p style="color:red;">Error connecting to AI diagnosis server.</p>`;
     }
   });
 
-  // ========== REFERRAL + PAYSTACK + MAKE INTEGRATION ==========
-  const MAKE_WEBHOOK_URL = "https://hook.eu2.make.com/nx13ilko39doy4w6cdo4e9mch2irl8uf";
-
-  // Referral via URL
-  const params = new URLSearchParams(window.location.search);
-  const ref = params.get("ref");
-  if (ref) {
-    userData.referredBy = ref;
-    saveUserData();
-    fetch(MAKE_WEBHOOK_URL, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ event: "referral", referred_by: ref, date: new Date().toISOString() }),
-    });
-  }
-
-  function openPaystack(email) {
-    const handler = PaystackPop.setup({
-      key: "pk_test_dd056cfe734e3a011b3802eb0aef6f165e04d0a5", // Your Paystack key
-      email,
-      amount: 150000, // ₦1,500
-      currency: "NGN",
-      callback: response => {
-        alert("✅ Payment successful! You now have unlimited access.");
-        userData.isPro = true;
-        userData.paymentRef = response.reference;
-        userData.upgradeDate = new Date().toISOString();
-        saveUserData();
-
-        fetch(MAKE_WEBHOOK_URL, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            event: "payment_success",
-            email,
-            reference: response.reference,
-            date: new Date().toISOString(),
-          }),
-        });
-        location.reload();
-      },
-      onClose: () => alert("Payment window closed."),
-    });
-    handler.openIframe();
-  }
-
+  // ========== REFERRAL SYSTEM ==========
   function handleReferral() {
-    const referralId = userData.referralId || Math.random().toString(36).substring(2, 8);
-    userData.referralId = referralId;
-    saveUserData();
-    const link = `${window.location.origin}?ref=${referralId}`;
-    navigator.clipboard.writeText(link);
-    alert(`✅ Your referral link copied!\n${link}\n\nRefer 3 users to unlock 1-month Pro access.`);
-
-    fetch(MAKE_WEBHOOK_URL, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ event: "referral_shared", referralId, date: new Date().toISOString() }),
+    const referralLink = `${window.location.origin}?ref=${userData.userId}`;
+    navigator.clipboard.writeText(referralLink);
+    alert(
+      `✅ Your referral link has been copied!\n\n${referralLink}\n\nRefer 3 users to unlock unlimited access.`
+    );
+    sendToWebhook({
+      event: "referral_shared",
+      userId: userData.userId,
+      email: userData.email,
+      date: new Date().toISOString(),
     });
   }
 
   function checkReferralBonus() {
     if (userData.referralCount >= 3 && !userData.isPro) {
       userData.isPro = true;
-      userData.referralBonusDate = new Date().toISOString();
-      saveUserData();
-      alert("🎉 You’ve unlocked 1-month Pro via referrals!");
+      localStorage.setItem("userData", JSON.stringify(userData));
+      alert("🎉 You’ve unlocked Pro via referrals!");
     }
   }
 
   document.addEventListener("click", e => {
-    if (e.target.id === "continuePaystack") {
-      const email = document.getElementById("upgradeEmail").value.trim();
-      if (email) openPaystack(email);
-      else alert("Please enter your email to continue.");
-    }
     if (e.target.id === "referBtn") handleReferral();
-    if (e.target.id === "saveDiagnosisBtn") alert("✅ Diagnosis saved (Pro feature).");
   });
 
   checkReferralBonus();
@@ -284,5 +261,3 @@ document.addEventListener("DOMContentLoaded", () => {
     document.getElementById("feedQtyResult").textContent = `Feed Quantity: ${totalFeed} kg/day`;
   });
 });
-
-
