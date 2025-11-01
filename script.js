@@ -1,33 +1,20 @@
 document.addEventListener("DOMContentLoaded", async () => {
+  // ========= TAB SWITCHING =========
+  const tabButtons = document.querySelectorAll(".tab-button");
+  const tabContents = document.querySelectorAll(".tab-content");
+
+  tabButtons.forEach(button => {
+    button.addEventListener("click", () => {
+      tabButtons.forEach(btn => btn.classList.remove("active"));
+      tabContents.forEach(tab => tab.classList.remove("active"));
+      button.classList.add("active");
+      document.getElementById(button.dataset.tab).classList.add("active");
+    });
+  });
+
+  // ========= MAKE WEBHOOK =========
   const MAKE_WEBHOOK_URL = "https://hook.eu2.make.com/nx13ilko39doy4w6cdo4e9mch2irl8uf";
 
-  const signupModal = document.getElementById("signupModal");
-  const appContainer = document.getElementById("appContainer");
-  const footer = document.getElementById("appFooter");
-
-  const emailInput = document.getElementById("userEmail");
-  const refInput = document.getElementById("referralCode");
-  const continueBtn = document.getElementById("continueBtn");
-
-  const urlParams = new URLSearchParams(window.location.search);
-  const refFromLink = urlParams.get("ref");
-
-  let userData = JSON.parse(localStorage.getItem("userData")) || null;
-
-  // Show main app if user is already logged in
-  if (userData) {
-    signupModal.classList.remove("active");
-    signupModal.classList.add("hidden");
-    appContainer.classList.remove("hidden");
-    footer.classList.remove("hidden");
-  }
-
-  // Generate random user ID
-  function generateUserId() {
-    return "user_" + Math.random().toString(36).substring(2, 9);
-  }
-
-  // Send data to Make webhook
   async function sendToWebhook(payload) {
     try {
       await fetch(MAKE_WEBHOOK_URL, {
@@ -35,59 +22,259 @@ document.addEventListener("DOMContentLoaded", async () => {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
+      console.log("✅ Sent to Make webhook:", payload);
     } catch (err) {
-      console.error("Webhook Error:", err);
+      console.error("❌ Webhook error:", err);
     }
   }
 
-  // Signup handler
-  continueBtn.addEventListener("click", async () => {
-    const email = emailInput.value.trim();
-    const referral = refInput.value.trim() || refFromLink || null;
+  // ========= USER DATA & REFERRAL =========
+  let userData = JSON.parse(localStorage.getItem("userData")) || null;
+  const urlParams = new URLSearchParams(window.location.search);
+  const refFromLink = urlParams.get("ref");
 
-    if (!email) {
-      alert("Please enter your email to continue.");
+  function generateUserId() {
+    return "user_" + Math.random().toString(36).substring(2, 9);
+  }
+
+  async function initUser() {
+    if (!userData) {
+      let email = prompt("Enter your email (Google or personal) to get started:");
+      if (!email || !email.includes("@")) {
+        alert("Valid email required to continue");
+        return;
+      }
+
+      userData = {
+        userId: generateUserId(),
+        email,
+        isPro: false,
+        diagnosisCount: 0,
+        referralCount: 0,
+        referredBy: refFromLink || null,
+        createdAt: new Date().toISOString(),
+      };
+
+      localStorage.setItem("userData", JSON.stringify(userData));
+
+      // Send new signup data
+      await sendToWebhook({
+        event: "signup",
+        userId: userData.userId,
+        email: userData.email,
+        referredBy: userData.referredBy,
+        date: new Date().toISOString(),
+      });
+
+      // If referred, notify Make to credit the referrer
+      if (refFromLink) {
+        await sendToWebhook({
+          event: "referral_used",
+          referrerId: refFromLink,
+          newUserEmail: userData.email,
+          newUserId: userData.userId,
+          date: new Date().toISOString(),
+        });
+      }
+
+      alert("✅ Welcome! Your account has been created successfully.");
+    }
+  }
+
+  await initUser();
+
+  // ========= REFERRAL =========
+  function handleReferral() {
+    const referralLink = `${window.location.origin}?ref=${userData.userId}`;
+    navigator.clipboard.writeText(referralLink);
+
+    alert(
+      `✅ Referral link copied!\n\n${referralLink}\n\nShare this link with friends — refer 3 users to unlock Pro access.`
+    );
+
+    sendToWebhook({
+      event: "referral_shared",
+      userId: userData.userId,
+      email: userData.email,
+      date: new Date().toISOString(),
+    });
+  }
+
+  function checkReferralBonus() {
+    if (userData.referralCount >= 3 && !userData.isPro) {
+      userData.isPro = true;
+      localStorage.setItem("userData", JSON.stringify(userData));
+      alert("🎉 You’ve unlocked unlimited Pro access via referrals!");
+    }
+  }
+
+  // ========= FARM RECORDS =========
+  const form = document.getElementById("recordForm");
+  const tableBody = document.querySelector("#recordsTable tbody");
+  let records = JSON.parse(localStorage.getItem("farmRecords")) || [];
+
+  function renderRecords() {
+    tableBody.innerHTML = "";
+    let totalFish = 0, totalFeed = 0, totalExpense = 0;
+
+    records.forEach((r, i) => {
+      totalFish += parseInt(r.fishCount) || 0;
+      totalFeed += parseFloat(r.feedUsed) || 0;
+      totalExpense += parseFloat(r.expense) || 0;
+
+      const row = document.createElement("tr");
+      row.innerHTML = `
+        <td>${r.date}</td>
+        <td>${r.pondName}</td>
+        <td>${r.fishCount}</td>
+        <td>${r.feedUsed}</td>
+        <td>${r.expense}</td>
+        <td>${r.notes}</td>
+        <td class="actions">
+          <button class="action-btn edit" data-index="${i}">✏️</button>
+          <button class="action-btn delete" data-index="${i}">🗑️</button>
+        </td>`;
+      tableBody.appendChild(row);
+    });
+
+    document.getElementById("totalFish").textContent = totalFish;
+    document.getElementById("totalFeed").textContent = totalFeed.toFixed(1);
+    document.getElementById("totalExpense").textContent = totalExpense.toLocaleString();
+
+    localStorage.setItem("farmRecords", JSON.stringify(records));
+  }
+
+  form.addEventListener("submit", e => {
+    e.preventDefault();
+    const newRecord = {
+      date: form.date.value || new Date().toISOString().split("T")[0],
+      pondName: form.pondName.value,
+      fishCount: form.fishCount.value,
+      feedUsed: form.feedUsed.value,
+      expense: form.expense.value,
+      notes: form.notes.value,
+    };
+    records.push(newRecord);
+    renderRecords();
+    form.reset();
+  });
+
+  tableBody.addEventListener("click", e => {
+    if (e.target.classList.contains("delete")) {
+      const index = e.target.dataset.index;
+      records.splice(index, 1);
+      renderRecords();
+    }
+    if (e.target.classList.contains("edit")) {
+      const index = e.target.dataset.index;
+      const r = records[index];
+      form.date.value = r.date;
+      form.pondName.value = r.pondName;
+      form.fishCount.value = r.fishCount;
+      form.feedUsed.value = r.feedUsed;
+      form.expense.value = r.expense;
+      form.notes.value = r.notes;
+      records.splice(index, 1);
+      renderRecords();
+    }
+  });
+
+  renderRecords();
+
+  // ========= AI DISEASE DIAGNOSIS =========
+  document.getElementById("diagnoseBtn").addEventListener("click", async () => {
+    const input = document.getElementById("diseaseInput").value.trim();
+    const resultDiv = document.getElementById("diagnosisResult");
+
+    if (!userData.isPro && (userData.diagnosisCount || 0) >= 2) {
+      resultDiv.innerHTML = `
+        <p style="color:red;">Free limit reached (2 diagnoses/week).<br>
+        Invite 3 users via your referral link for unlimited access.</p>
+        <button id="referBtn" class="refer-btn">Refer Friends</button>`;
       return;
     }
 
-    userData = {
-      userId: generateUserId(),
-      email,
-      isPro: false,
-      diagnosisCount: 0,
-      referralCount: 0,
-      referredBy: referral,
-      createdAt: new Date().toISOString(),
-    };
-    localStorage.setItem("userData", JSON.stringify(userData));
+    resultDiv.innerHTML = "<p>Analyzing symptoms...</p>";
 
-    // Hide modal and show app
-    signupModal.classList.add("hidden");
-    appContainer.classList.remove("hidden");
-    footer.classList.remove("hidden");
-
-    // Send signup to Make
-    await sendToWebhook({
-      event: "signup",
-      userId: userData.userId,
-      email: userData.email,
-      referredBy: userData.referredBy,
-      date: new Date().toISOString(),
-    });
-
-    // Trigger referral credit if applicable
-    if (referral) {
-      await sendToWebhook({
-        event: "referral_used",
-        referredBy: referral,
-        newUser: userData.email,
-        newUserId: userData.userId,
-        date: new Date().toISOString(),
+    try {
+      const response = await fetch("/api/claude", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model: "claude-3-5-sonnet-20241022",
+          max_tokens: 500,
+          messages: [
+            {
+              role: "user",
+              content: `You are an aquaculture expert. Based on this description: "${input}", identify the likely fish disease, recommend treatment, and prevention steps. Format strictly as JSON with keys: diagnosis, treatment, prevention.`,
+            },
+          ],
+        }),
       });
-    }
 
-    alert("Welcome to MyFishDoc Online!");
+      const data = await response.json();
+      let text = data.content?.[0]?.text || "";
+      text = text.replace(/```json|```/g, "").trim();
+
+      let parsed;
+      try {
+        parsed = JSON.parse(text);
+      } catch {
+        parsed = {
+          diagnosis: "Could not extract structured diagnosis.",
+          treatment: text,
+          prevention: "Try rephrasing your input.",
+        };
+      }
+
+      resultDiv.innerHTML = `
+        <div class="ai-card"><h3>Diagnosis</h3><p>${parsed.diagnosis}</p></div>
+        <div class="ai-card"><h3>Treatment</h3><p>${parsed.treatment}</p></div>
+        <div class="ai-card"><h3>Prevention</h3><p>${parsed.prevention}</p></div>
+      `;
+
+      userData.diagnosisCount = (userData.diagnosisCount || 0) + 1;
+      localStorage.setItem("userData", JSON.stringify(userData));
+    } catch (err) {
+      console.error("Claude API Error:", err);
+      resultDiv.innerHTML = `<p style="color:red;">Error connecting to AI diagnosis.</p>`;
+    }
   });
 
-  // ---- The rest of your existing logic (tabs, records, diagnosis, etc.) ----
+  document.addEventListener("click", e => {
+    if (e.target.id === "referBtn") handleReferral();
+  });
+
+  checkReferralBonus();
+
+  // ========= CALCULATORS =========
+  document.getElementById("calcFCR").addEventListener("click", () => {
+    const feed = parseFloat(document.getElementById("feedGiven").value);
+    const initial = parseFloat(document.getElementById("initialWeight").value);
+    const final = parseFloat(document.getElementById("finalWeight").value);
+    if (!feed || !initial || !final || final <= initial)
+      return (document.getElementById("fcrResult").textContent = "Please enter valid values.");
+    const fcr = feed / (final - initial);
+    document.getElementById("fcrResult").textContent = `FCR: ${fcr.toFixed(2)}`;
+  });
+
+  document.getElementById("calcFeedQty").addEventListener("click", () => {
+    const sampleCount = parseFloat(document.getElementById("sampleCount").value);
+    const sampleWeight = parseFloat(document.getElementById("sampleWeight").value);
+    const unit = document.getElementById("weightUnit").value;
+    const age = parseInt(document.getElementById("fishAge").value);
+    const totalFish = parseInt(document.getElementById("totalFishCount").value);
+    if (!sampleCount || !sampleWeight || !age || !totalFish)
+      return (document.getElementById("feedQtyResult").textContent = "Please enter all fields.");
+    let avgWeight = sampleWeight / sampleCount;
+    if (unit === "g") avgWeight /= 1000;
+    let feedRate = 0.05;
+    if (age < 4) feedRate = 0.08;
+    else if (age < 8) feedRate = 0.06;
+    else if (age < 12) feedRate = 0.04;
+    else if (age < 20) feedRate = 0.025;
+    else feedRate = 0.015;
+    const totalFeed = (avgWeight * totalFish * feedRate).toFixed(2);
+    document.getElementById("feedQtyResult").textContent = `Feed Quantity: ${totalFeed} kg/day`;
+  });
 });
