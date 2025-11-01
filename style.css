@@ -290,6 +290,35 @@ button:hover {
   text-decoration: underline;
 }
 
+.referral-section {
+  background: #f3f8ff;
+  border: 1px solid #bcd4ff;
+  padding: 16px;
+  margin: 20px auto;
+  border-radius: 12px;
+  max-width: 400px;
+  text-align: center;
+}
+.referral-section input {
+  width: 80%;
+  padding: 8px;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  margin-top: 10px;
+}
+.referral-section button {
+  background: #007bff;
+  color: white;
+  border: none;
+  padding: 8px 12px;
+  border-radius: 8px;
+  margin-top: 10px;
+  cursor: pointer;
+}
+.referral-section button:hover {
+  background: #005dc1;
+}
+
 /* === Responsive === */
 @media (max-width: 700px) {
   .dashboard, .calc-container {
@@ -304,3 +333,4 @@ button:hover {
     font-size: 13px;
   }
 }
+
