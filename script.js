@@ -1,8 +1,91 @@
-document.addEventListener("DOMContentLoaded", async () => {
-  // ========= TAB SWITCHING =========
+// ====== SIGNUP & REFERRAL LOGIC ======
+document.addEventListener("DOMContentLoaded", () => {
+  const continueBtn = document.getElementById("continueBtn");
+  const emailInput = document.getElementById("userEmail");
+  const referralInput = document.getElementById("referralCode");
+  const signupModal = document.getElementById("signupModal");
+  const appContainer = document.getElementById("appContainer");
+  const footer = document.getElementById("appFooter");
+
+  const MAKE_WEBHOOK_URL = "https://hook.eu2.make.com/nx13ilko39doy4w6cdo4e9mch2irl8uf";
+
+  // Auto-fill referral code from ?ref= param
+  const urlParams = new URLSearchParams(window.location.search);
+  const refFromLink = urlParams.get("ref");
+  if (refFromLink) referralInput.value = refFromLink;
+
+  // Check if user already signed up (stored locally)
+  const savedUser = JSON.parse(localStorage.getItem("myfishdoc_user"));
+  if (savedUser) {
+    signupModal.classList.add("hidden");
+    appContainer.classList.remove("hidden");
+    footer.classList.remove("hidden");
+  }
+
+  function generateUserId() {
+    return "user_" + Math.random().toString(36).substring(2, 9);
+  }
+
+  // Handle Continue button
+  continueBtn.addEventListener("click", async () => {
+    const email = emailInput.value.trim();
+    const referralCode = referralInput.value.trim();
+
+    if (!email) {
+      alert("Please enter your email.");
+      return;
+    }
+
+    const userData = {
+      userId: generateUserId(),
+      email,
+      referredBy: referralCode || refFromLink || null,
+      referralCount: 0,
+      isPro: false,
+      diagnosisCount: 0,
+      createdAt: new Date().toISOString(),
+    };
+
+    // Save locally
+    localStorage.setItem("myfishdoc_user", JSON.stringify(userData));
+
+    // Send signup data to Make
+    try {
+      await fetch(MAKE_WEBHOOK_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          event: "signup",
+          ...userData,
+        }),
+      });
+
+      if (userData.referredBy) {
+        await fetch(MAKE_WEBHOOK_URL, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            event: "referral_used",
+            referrer: userData.referredBy,
+            newUser: userData.email,
+          }),
+        });
+      }
+    } catch (err) {
+      console.error("Webhook error:", err);
+    }
+
+    // Hide modal, show app
+    signupModal.classList.add("hidden");
+    appContainer.classList.remove("hidden");
+    footer.classList.remove("hidden");
+
+    alert("Welcome to MyFishDoc! Your account has been created.");
+  });
+
+  // ====== TAB SWITCHING ======
   const tabButtons = document.querySelectorAll(".tab-button");
   const tabContents = document.querySelectorAll(".tab-content");
-
   tabButtons.forEach(button => {
     button.addEventListener("click", () => {
       tabButtons.forEach(btn => btn.classList.remove("active"));
@@ -12,125 +95,28 @@ document.addEventListener("DOMContentLoaded", async () => {
     });
   });
 
-  // ========= MAKE WEBHOOK =========
-  const MAKE_WEBHOOK_URL = "https://hook.eu2.make.com/nx13ilko39doy4w6cdo4e9mch2irl8uf";
-
-  async function sendToWebhook(payload) {
-    try {
-      await fetch(MAKE_WEBHOOK_URL, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-      console.log("✅ Sent to Make webhook:", payload);
-    } catch (err) {
-      console.error("❌ Webhook error:", err);
-    }
-  }
-
-  // ========= USER DATA & REFERRAL =========
-  let userData = JSON.parse(localStorage.getItem("userData")) || null;
-  const urlParams = new URLSearchParams(window.location.search);
-  const refFromLink = urlParams.get("ref");
-
-  function generateUserId() {
-    return "user_" + Math.random().toString(36).substring(2, 9);
-  }
-
-  async function registerUser(email, refCode) {
-    if (!email || !email.includes("@")) {
-      alert("Please enter a valid email address.");
+  // ====== REFERRAL SHARING ======
+  function handleReferral() {
+    const user = JSON.parse(localStorage.getItem("myfishdoc_user"));
+    if (!user) {
+      alert("Please sign up first.");
       return;
     }
-
-    userData = {
-      userId: generateUserId(),
-      email,
-      isPro: false,
-      diagnosisCount: 0,
-      referralCount: 0,
-      referredBy: refCode || refFromLink || null,
-      createdAt: new Date().toISOString(),
-    };
-
-    localStorage.setItem("userData", JSON.stringify(userData));
-
-    // Send signup event
-    await sendToWebhook({
-      event: "signup",
-      userId: userData.userId,
-      email: userData.email,
-      referredBy: userData.referredBy,
-      date: new Date().toISOString(),
-    });
-
-    // If referred by someone
-    if (userData.referredBy) {
-      await sendToWebhook({
-        event: "referral_used",
-        referrerId: userData.referredBy,
-        newUserEmail: userData.email,
-        newUserId: userData.userId,
-        date: new Date().toISOString(),
-      });
-    }
-
-    // Hide signup form, show app
-    document.getElementById("signupSection").style.display = "none";
-    document.getElementById("appSection").style.display = "block";
-    alert("✅ Welcome! Your account has been created successfully.");
-  }
-
-  // ========= SIGNUP FORM HANDLER =========
-  const signupForm = document.getElementById("signupForm");
-  if (signupForm) {
-    signupForm.addEventListener("submit", async e => {
-      e.preventDefault();
-      const email = document.getElementById("emailInput").value.trim();
-      const refCode = document.getElementById("refInput").value.trim();
-      await registerUser(email, refCode);
-    });
-  }
-
-  // Auto-skip signup if already logged in
-  if (userData) {
-    document.getElementById("signupSection").style.display = "none";
-    document.getElementById("appSection").style.display = "block";
-  }
-
-  // ========= REFERRAL =========
-  function handleReferral() {
-    const referralLink = `${window.location.origin}?ref=${userData.userId}`;
+    const referralLink = `${window.location.origin}?ref=${user.userId}`;
     navigator.clipboard.writeText(referralLink);
-
-    alert(
-      `✅ Referral link copied!\n\n${referralLink}\n\nShare this link with friends — refer 3 users to unlock Pro access.`
-    );
-
-    sendToWebhook({
-      event: "referral_shared",
-      userId: userData.userId,
-      email: userData.email,
-      date: new Date().toISOString(),
-    });
+    alert(`Referral link copied!\n\n${referralLink}\n\nShare this with friends.`);
   }
 
-  function checkReferralBonus() {
-    if (userData?.referralCount >= 3 && !userData.isPro) {
-      userData.isPro = true;
-      localStorage.setItem("userData", JSON.stringify(userData));
-      alert("🎉 You’ve unlocked unlimited Pro access via referrals!");
-    }
-  }
-
-  // ========= FARM RECORDS =========
+  // ====== FARM RECORDS ======
   const form = document.getElementById("recordForm");
   const tableBody = document.querySelector("#recordsTable tbody");
   let records = JSON.parse(localStorage.getItem("farmRecords")) || [];
 
   function renderRecords() {
     tableBody.innerHTML = "";
-    let totalFish = 0, totalFeed = 0, totalExpense = 0;
+    let totalFish = 0,
+      totalFeed = 0,
+      totalExpense = 0;
 
     records.forEach((r, i) => {
       totalFish += parseInt(r.fishCount) || 0;
@@ -176,35 +162,40 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   tableBody?.addEventListener("click", e => {
     if (e.target.classList.contains("delete")) {
-      const index = e.target.dataset.index;
-      records.splice(index, 1);
+      records.splice(e.target.dataset.index, 1);
       renderRecords();
     }
     if (e.target.classList.contains("edit")) {
-      const index = e.target.dataset.index;
-      const r = records[index];
+      const r = records[e.target.dataset.index];
       form.date.value = r.date;
       form.pondName.value = r.pondName;
       form.fishCount.value = r.fishCount;
       form.feedUsed.value = r.feedUsed;
       form.expense.value = r.expense;
       form.notes.value = r.notes;
-      records.splice(index, 1);
+      records.splice(e.target.dataset.index, 1);
       renderRecords();
     }
   });
 
   renderRecords();
 
-  // ========= AI DISEASE DIAGNOSIS =========
-  document.getElementById("diagnoseBtn")?.addEventListener("click", async () => {
+  // ====== AI DISEASE DIAGNOSIS ======
+  const diagnoseBtn = document.getElementById("diagnoseBtn");
+  diagnoseBtn?.addEventListener("click", async () => {
     const input = document.getElementById("diseaseInput").value.trim();
     const resultDiv = document.getElementById("diagnosisResult");
+    const user = JSON.parse(localStorage.getItem("myfishdoc_user"));
 
-    if (!userData?.isPro && (userData?.diagnosisCount || 0) >= 2) {
+    if (!input) {
+      alert("Please describe the fish symptoms.");
+      return;
+    }
+
+    if (!user.isPro && (user.diagnosisCount || 0) >= 2) {
       resultDiv.innerHTML = `
-        <p style="color:red;">Free limit reached (2 diagnoses/week).<br>
-        Invite 3 users via your referral link for unlimited access.</p>
+        <p style="color:red;">Free limit reached (2 per week).<br>
+        Invite 3 users to unlock unlimited access.</p>
         <button id="referBtn" class="refer-btn">Refer Friends</button>`;
       return;
     }
@@ -248,8 +239,8 @@ document.addEventListener("DOMContentLoaded", async () => {
         <div class="ai-card"><h3>Prevention</h3><p>${parsed.prevention}</p></div>
       `;
 
-      userData.diagnosisCount = (userData.diagnosisCount || 0) + 1;
-      localStorage.setItem("userData", JSON.stringify(userData));
+      user.diagnosisCount = (user.diagnosisCount || 0) + 1;
+      localStorage.setItem("myfishdoc_user", JSON.stringify(user));
     } catch (err) {
       console.error("Claude API Error:", err);
       resultDiv.innerHTML = `<p style="color:red;">Error connecting to AI diagnosis.</p>`;
@@ -259,6 +250,4 @@ document.addEventListener("DOMContentLoaded", async () => {
   document.addEventListener("click", e => {
     if (e.target.id === "referBtn") handleReferral();
   });
-
-  checkReferralBonus();
 });
