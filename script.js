@@ -6,7 +6,9 @@ document.addEventListener("DOMContentLoaded", () => {
   const appContainer = document.getElementById("appContainer");
   const footer = document.getElementById("appFooter");
 
-  const MAKE_WEBHOOK_URL = "https://hook.eu2.make.com/nx13ilko39doy4w6cdo4e9mch2irl8uf";
+  // Your Make Webhook URLs
+  const MAKE_EVENT_WEBHOOK = "https://hook.eu2.make.com/nx13ilko39doy4w6cdo4e9mch2irl8uf";
+  const MAKE_GET_USER_WEBHOOK = "https://hook.eu2.make.com/j5dg9c4wmfno9h5vbgb8ue6wfj14824h"; 
 
   // Auto-fill referral from URL
   const urlParams = new URLSearchParams(window.location.search);
@@ -14,8 +16,8 @@ document.addEventListener("DOMContentLoaded", () => {
   if (refFromLink) referralInput.value = refFromLink;
 
   // Check local signup
-  const savedUser = JSON.parse(localStorage.getItem("myfishdoc_user"));
-  if (savedUser) {
+  let user = JSON.parse(localStorage.getItem("myfishdoc_user"));
+  if (user) {
     signupModal?.classList.add("hidden");
     appContainer?.classList.remove("hidden");
     footer?.classList.remove("hidden");
@@ -27,7 +29,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   async function sendWebhook(eventType, data) {
     try {
-      const res = await fetch(MAKE_WEBHOOK_URL, {
+      const res = await fetch(MAKE_EVENT_WEBHOOK, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ event: eventType, ...data }),
@@ -38,6 +40,21 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
+  async function getUserDataFromMake(userId, email) {
+    try {
+      const res = await fetch(MAKE_GET_USER_WEBHOOK, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId, email }),
+      });
+      const data = await res.json();
+      return data;
+    } catch (err) {
+      console.error("Error fetching user data from Make:", err);
+      return null;
+    }
+  }
+
   // ===== SIGNUP BUTTON =====
   continueBtn?.addEventListener("click", async () => {
     const email = emailInput.value.trim();
@@ -45,7 +62,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     if (!email) { alert("Please enter your email."); return; }
 
-    const userData = {
+    user = {
       userId: generateUserId(),
       email,
       referredBy: referralCode || refFromLink || null,
@@ -55,31 +72,17 @@ document.addEventListener("DOMContentLoaded", () => {
       createdAt: new Date().toISOString(),
     };
 
-    localStorage.setItem("myfishdoc_user", JSON.stringify(userData));
+    localStorage.setItem("myfishdoc_user", JSON.stringify(user));
 
     // Send signup event
-    await sendWebhook("signup", userData);
+    await sendWebhook("signup", user);
 
     // Send referral_used event if applicable
-    if (userData.referredBy) {
+    if (user.referredBy) {
       await sendWebhook("referral_used", {
-        referrer: userData.referredBy,
-        newUser: userData.email,
+        referrer: user.referredBy,
+        newUser: user.email,
       });
-
-      // Increment referrer’s referralCount and upgrade to Pro if needed
-      const referrerData = JSON.parse(localStorage.getItem(userData.referredBy));
-      if (referrerData) {
-        referrerData.referralCount = (referrerData.referralCount || 0) + 1;
-
-        if (!referrerData.isPro && referrerData.referralCount >= 3) {
-          referrerData.isPro = true;
-          alert(`${referrerData.email} is now a Pro user! Unlimited AI access unlocked.`);
-          await sendWebhook("pro_upgrade", { userId: referrerData.userId, email: referrerData.email });
-        }
-
-        localStorage.setItem(userData.referredBy, JSON.stringify(referrerData));
-      }
     }
 
     signupModal?.classList.add("hidden");
@@ -195,14 +198,22 @@ document.addEventListener("DOMContentLoaded", () => {
   diagnoseBtn?.addEventListener("click", async () => {
     const input = document.getElementById("diseaseInput").value.trim();
     const resultDiv = document.getElementById("diagnosisResult");
-    const user = JSON.parse(localStorage.getItem("myfishdoc_user"));
 
+    if (!user) { alert("Please sign up first."); return; }
     if (!input) { alert("Please describe the fish symptoms."); return; }
 
-    // Check free limit and Pro status
-    if (!user.isPro && (user.diagnosisCount || 0) >= 2) {
+    // Fetch latest user data from Make
+    const liveUserData = await getUserDataFromMake(user.userId, user.email);
+    if (liveUserData) {
+      user.diagnosisCount = liveUserData.diagnosisCount;
+      user.isPro = liveUserData.isPro;
+      user.referralCount = liveUserData.referralCount;
+      localStorage.setItem("myfishdoc_user", JSON.stringify(user));
+    }
+
+    if (!user.isPro && user.diagnosisCount >= 2) {
       resultDiv.innerHTML = `<p style="color:red;">Free limit reached (2 per week).<br> Invite 3 users to unlock unlimited access.</p>
-      <button id="referBtn" class="refer-btn">Refer Friends</button>`;
+        <button id="referBtn" class="refer-btn">Refer Friends</button>`;
       return;
     }
 
@@ -247,11 +258,11 @@ document.addEventListener("DOMContentLoaded", () => {
       }
 
       resultDiv.innerHTML = `<div class="ai-card"><h3>Diagnosis</h3><p>${formatText(parsed.diagnosis)}</p></div>
-      <div class="ai-card"><h3>Treatment</h3><p>${formatText(parsed.treatment)}</p></div>
-      <div class="ai-card"><h3>Prevention</h3><p>${formatText(parsed.prevention)}</p></div>`;
+        <div class="ai-card"><h3>Treatment</h3><p>${formatText(parsed.treatment)}</p></div>
+        <div class="ai-card"><h3>Prevention</h3><p>${formatText(parsed.prevention)}</p></div>`;
 
       // Update user count and send usage to Make
-      user.diagnosisCount = (user.diagnosisCount || 0) + 1;
+      user.diagnosisCount += 1;
       localStorage.setItem("myfishdoc_user", JSON.stringify(user));
       await sendWebhook("diagnosis_used", {
         userId: user.userId,
