@@ -103,10 +103,7 @@ function editRecord(index) {
 
 document.addEventListener("DOMContentLoaded", () => {
   const dateInput = document.getElementById("date");
-  if (dateInput) {
-    const today = new Date().toISOString().split("T")[0];
-    dateInput.value = today;
-  }
+  if (dateInput) dateInput.value = new Date().toISOString().split("T")[0];
 });
 
 renderRecords();
@@ -117,11 +114,15 @@ document.getElementById("diagnoseBtn").addEventListener("click", async () => {
   const resultDiv = document.getElementById("diagnosisResult");
 
   if (!userData.isPro && userData.diagnosisCount >= 2) {
-    return resultDiv.innerHTML = `
+    resultDiv.innerHTML = `
       <p style="color:red;">Free limit reached (2 diagnoses/week). 
       <br>Upgrade to Pro for unlimited access or refer 3 users for 1 month free.</p>
-      <button id="upgradeBtn" class="upgrade-btn">Upgrade to Pro (₦1,500)</button>
+      <div class="upgrade-inline">
+        <input type="email" id="upgradeEmail" placeholder="Enter your email" required />
+        <button id="continuePaystack" class="upgrade-btn">Continue to Paystack</button>
+      </div>
       <button id="referBtn" class="refer-btn">Refer Friends</button>`;
+    return;
   }
 
   resultDiv.innerHTML = "<p>Analyzing symptoms...</p>";
@@ -137,8 +138,7 @@ document.getElementById("diagnoseBtn").addEventListener("click", async () => {
           {
             role: "user",
             content: `You are an aquaculture expert. Based on this description: "${input}", identify the likely fish disease, recommend treatment, and give prevention steps. 
-            Format your response strictly as a JSON object with keys: diagnosis, treatment, prevention. 
-            For treatment and prevention, use numbered points (1), 2), etc.), each on a new line.`
+            Format your response strictly as a JSON object with keys: diagnosis, treatment, prevention.`
           }
         ]
       })
@@ -152,34 +152,16 @@ document.getElementById("diagnoseBtn").addEventListener("click", async () => {
     try {
       parsed = JSON.parse(text);
     } catch {
-      parsed = {
-        diagnosis: "Could not extract structured diagnosis.",
-        treatment: text,
-        prevention: "Try rephrasing or adding more detail about symptoms."
-      };
+      parsed = { diagnosis: "Could not extract structured diagnosis.", treatment: text, prevention: "Try rephrasing or adding more detail about symptoms." };
     }
 
-    const formatMultiline = str =>
-      str.replace(/\d+\)/g, match => `<br><strong>${match}</strong>`);
+    const formatMultiline = str => str.replace(/\d+\)/g, match => `<br><strong>${match}</strong>`);
 
     resultDiv.innerHTML = `
-      <div class="ai-card">
-        <h3>Diagnosis</h3>
-        <p>${parsed.diagnosis.replace(/\n/g, "<br>")}</p>
-      </div>
-      <div class="ai-card">
-        <h3>Treatment</h3>
-        <p>${formatMultiline(parsed.treatment)}</p>
-      </div>
-      <div class="ai-card">
-        <h3>Prevention</h3>
-        <p>${formatMultiline(parsed.prevention)}</p>
-      </div>
-      ${
-        userData.isPro
-          ? `<button id="saveDiagnosisBtn" class="save-btn">💾 Save This Diagnosis</button>`
-          : `<p style="margin-top:10px;color:#555;">Upgrade to save or download.</p>`
-      }
+      <div class="ai-card"><h3>Diagnosis</h3><p>${parsed.diagnosis}</p></div>
+      <div class="ai-card"><h3>Treatment</h3><p>${formatMultiline(parsed.treatment)}</p></div>
+      <div class="ai-card"><h3>Prevention</h3><p>${formatMultiline(parsed.prevention)}</p></div>
+      ${userData.isPro ? `<button id="saveDiagnosisBtn" class="save-btn">💾 Save This Diagnosis</button>` : ""}
     `;
 
     userData.diagnosisCount++;
@@ -187,127 +169,39 @@ document.getElementById("diagnoseBtn").addEventListener("click", async () => {
 
   } catch (err) {
     console.error("Claude API Error:", err);
-    resultDiv.innerHTML = `<p style="color:red;">Error connecting to Claude API</p>`;
+    resultDiv.innerHTML = `<p style="color:red;">Error connecting to AI diagnosis server.</p>`;
   }
 });
 
-// ========== PAYSTACK UPGRADE ==========
-document.addEventListener("click", e => {
-  if (e.target.id === "upgradeBtn") {
-    const handler = PaystackPop.setup({
-      key: "pk_test_your_public_key_here",
-      email: prompt("Enter your email to continue:"),
-      amount: 150000, // ₦1,500
-      currency: "NGN",
-      callback: function() {
-        alert("✅ Upgrade successful! You now have unlimited access.");
-        userData.isPro = true;
-        saveUserData();
-        location.reload();
-      },
-      onClose: function() {
-        alert("Payment window closed. Contact support if you have issues.");
-      }
-    });
-    handler.openIframe();
-  }
-
-  if (e.target.id === "referBtn") {
-    alert("Share your referral link: example.com/?ref=YOURNAME\nRefer 3 users to unlock 1-month Pro access!");
-  }
-
-  if (e.target.id === "saveDiagnosisBtn") {
-    alert("✅ Diagnosis saved! (Pro feature active)");
-  }
-});
-
-// ========== CONTACT SUPPORT ==========
-document.getElementById("contactSupportBtn")?.addEventListener("click", () => {
-  window.open("mailto:support@smarttoolxyz.com?subject=Payment or Access Issue", "_blank");
-});
-
-// ========== CALCULATORS ==========
-document.getElementById("calcFCR").addEventListener("click", () => {
-  const feed = parseFloat(document.getElementById("feedGiven").value);
-  const initial = parseFloat(document.getElementById("initialWeight").value);
-  const final = parseFloat(document.getElementById("finalWeight").value);
-
-  if (!feed || !initial || !final || final <= initial) {
-    return (document.getElementById("fcrResult").textContent =
-      "Please enter valid values.");
-  }
-
-  const fcr = feed / (final - initial);
-  document.getElementById("fcrResult").textContent = `FCR: ${fcr.toFixed(2)}`;
-});
-
-document.getElementById("calcFeedQty").addEventListener("click", () => {
-  const sampleCount = parseFloat(document.getElementById("sampleCount").value);
-  const sampleWeight = parseFloat(document.getElementById("sampleWeight").value);
-  const unit = document.getElementById("weightUnit").value;
-  const age = parseInt(document.getElementById("fishAge").value);
-  const totalFish = parseInt(document.getElementById("totalFishCount").value);
-
-  if (!sampleCount || !sampleWeight || !age || !totalFish) {
-    return (document.getElementById("feedQtyResult").textContent =
-      "Please enter all fields.");
-  }
-
-  let avgWeight = sampleWeight / sampleCount;
-  if (unit === "g") avgWeight /= 1000;
-
-  let feedRate = 0.05;
-  if (age < 4) feedRate = 0.08;
-  else if (age < 8) feedRate = 0.06;
-  else if (age < 12) feedRate = 0.04;
-  else if (age < 20) feedRate = 0.025;
-  else feedRate = 0.015;
-
-  const totalFeed = (avgWeight * totalFish * feedRate).toFixed(2);
-  document.getElementById(
-    "feedQtyResult"
-  ).textContent = `Feed Quantity: ${totalFeed} kg/day`;
-});
-
-// ========== REFERRAL + PAYSTACK + MAKE WEBHOOK INTEGRATION ==========
-
-// Replace this with your Make webhook URL
+// ========== REFERRAL + PAYSTACK + MAKE INTEGRATION ==========
 const MAKE_WEBHOOK_URL = "https://hook.eu1.make.com/your-make-webhook-id";
 
-// Extract referral parameter from URL
-const urlParams = new URLSearchParams(window.location.search);
-const ref = urlParams.get("ref");
+// Handle referral via URL
+const params = new URLSearchParams(window.location.search);
+const ref = params.get("ref");
 if (ref) {
-  // Notify Make of referral
+  userData.referredBy = ref;
+  saveUserData();
   fetch(MAKE_WEBHOOK_URL, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      event: "referral",
-      referred_by: ref,
-      date: new Date().toISOString(),
-    }),
+    body: JSON.stringify({ event: "referral", referred_by: ref, date: new Date().toISOString() }),
   });
-  // Store referral locally for userData tracking
-  userData.referredBy = ref;
-  saveUserData();
 }
 
-// Upgrade to Pro function
-function upgradeToPro(email) {
+function openPaystack(email) {
   const handler = PaystackPop.setup({
-    key: "pk_test_1234567890abcdef12345678", // Replace with your live key later
+    key: "pk_test_1234567890abcdef12345678", // Replace with your Paystack key
     email,
     amount: 150000, // ₦1,500
     currency: "NGN",
-    callback: function (response) {
-      alert("✅ Payment successful! You’re now on Pro plan.");
+    callback: response => {
+      alert("✅ Payment successful! You now have unlimited access.");
       userData.isPro = true;
       userData.paymentRef = response.reference;
       userData.upgradeDate = new Date().toISOString();
       saveUserData();
 
-      // Notify Make of successful payment
       fetch(MAKE_WEBHOOK_URL, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -318,57 +212,79 @@ function upgradeToPro(email) {
           date: new Date().toISOString(),
         }),
       });
-
       location.reload();
     },
-    onClose: function () {
-      alert("Payment closed. Need help? Contact support@smarttoolxyz.com");
-    },
+    onClose: () => alert("Payment window closed."),
   });
   handler.openIframe();
 }
 
-// Referral sharing logic
+// Referral handler
 function handleReferral() {
   const referralId = userData.referralId || Math.random().toString(36).substring(2, 8);
   userData.referralId = referralId;
   saveUserData();
-
   const link = `${window.location.origin}?ref=${referralId}`;
   navigator.clipboard.writeText(link);
-  alert(`Your referral link has been copied:\n${link}\n\nRefer 3 users to unlock 1 month of Pro access!`);
+  alert(`✅ Your referral link copied!\n${link}\n\nRefer 3 users to unlock 1-month Pro access.`);
 
-  // Notify Make each time user shares referral
   fetch(MAKE_WEBHOOK_URL, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      event: "referral_shared",
-      referralId,
-      date: new Date().toISOString(),
-    }),
+    body: JSON.stringify({ event: "referral_shared", referralId, date: new Date().toISOString() }),
   });
 }
 
-// Detect 3 successful referrals (Make will send update)
-async function checkReferralCount() {
+// Check referral reward
+function checkReferralBonus() {
   if (userData.referralCount >= 3 && !userData.isPro) {
     userData.isPro = true;
     userData.referralBonusDate = new Date().toISOString();
     saveUserData();
-    alert("🎉 Congrats! You’ve unlocked 1 month of Pro access via referrals!");
+    alert("🎉 You’ve unlocked 1-month Pro via referrals!");
   }
 }
 
-// Event listeners for dynamic buttons
+// Dynamic button listeners
 document.addEventListener("click", e => {
-  if (e.target.id === "upgradeBtn") {
-    const email = prompt("Enter your email to continue:");
-    if (email) upgradeToPro(email);
+  if (e.target.id === "continuePaystack") {
+    const email = document.getElementById("upgradeEmail").value.trim();
+    if (email) openPaystack(email);
+    else alert("Please enter your email to continue.");
   }
-  if (e.target.id === "referBtn") {
-    handleReferral();
-  }
+  if (e.target.id === "referBtn") handleReferral();
+  if (e.target.id === "saveDiagnosisBtn") alert("✅ Diagnosis saved (Pro feature).");
 });
 
-checkReferralCount();
+checkReferralBonus();
+
+// ========== CALCULATORS ==========
+document.getElementById("calcFCR").addEventListener("click", () => {
+  const feed = parseFloat(document.getElementById("feedGiven").value);
+  const initial = parseFloat(document.getElementById("initialWeight").value);
+  const final = parseFloat(document.getElementById("finalWeight").value);
+  if (!feed || !initial || !final || final <= initial)
+    return (document.getElementById("fcrResult").textContent = "Please enter valid values.");
+  const fcr = feed / (final - initial);
+  document.getElementById("fcrResult").textContent = `FCR: ${fcr.toFixed(2)}`;
+});
+
+document.getElementById("calcFeedQty").addEventListener("click", () => {
+  const sampleCount = parseFloat(document.getElementById("sampleCount").value);
+  const sampleWeight = parseFloat(document.getElementById("sampleWeight").value);
+  const unit = document.getElementById("weightUnit").value;
+  const age = parseInt(document.getElementById("fishAge").value);
+  const totalFish = parseInt(document.getElementById("totalFishCount").value);
+  if (!sampleCount || !sampleWeight || !age || !totalFish)
+    return (document.getElementById("feedQtyResult").textContent = "Please enter all fields.");
+  let avgWeight = sampleWeight / sampleCount;
+  if (unit === "g") avgWeight /= 1000;
+  let feedRate = 0.05;
+  if (age < 4) feedRate = 0.08;
+  else if (age < 8) feedRate = 0.06;
+  else if (age < 12) feedRate = 0.04;
+  else if (age < 20) feedRate = 0.025;
+  else feedRate = 0.015;
+  const totalFeed = (avgWeight * totalFish * feedRate).toFixed(2);
+  document.getElementById("feedQtyResult").textContent = `Feed Quantity: ${totalFeed} kg/day`;
+});
