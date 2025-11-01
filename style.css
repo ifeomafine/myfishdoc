@@ -14,6 +14,17 @@ body {
 h1 {
   text-align: center;
   color: #0077b6;
+  margin-bottom: 5px;
+}
+
+/* === Tagline === */
+.tagline {
+  text-align: center;
+  font-size: 16px;
+  color: #555;
+  margin-bottom: 25px;
+  font-weight: 500;
+  letter-spacing: 0.3px;
 }
 
 .tabs {
@@ -51,7 +62,7 @@ h1 {
   display: block;
 }
 
-/* Dashboard */
+/* === Dashboard === */
 .dashboard {
   display: flex;
   gap: 10px;
@@ -120,7 +131,7 @@ button:hover {
   color: white;
 }
 
-/* === AI DISEASE DIAGNOSIS SECTION === */
+/* === AI Diagnosis === */
 #ai-diagnosis {
   max-width: 900px;
   margin: 0 auto;
@@ -188,7 +199,7 @@ button:hover {
   to { opacity: 1; transform: translateY(0); }
 }
 
-/* === CALCULATORS SECTION === */
+/* === Calculators === */
 #calculators {
   max-width: 1000px;
   margin: 0 auto;
@@ -258,10 +269,38 @@ button:hover {
   margin-bottom: 10px;
 }
 
+/* === Footer === */
+.footer {
+  background-color: #f8f9fa;
+  text-align: center;
+  padding: 20px 10px;
+  font-size: 14px;
+  color: #444;
+  border-top: 1px solid #e0e0e0;
+  margin-top: 40px;
+}
 
-/* Responsive */
+.footer a {
+  color: #0077b6;
+  font-weight: 500;
+  text-decoration: none;
+}
+
+.footer a:hover {
+  text-decoration: underline;
+}
+
+/* === Responsive === */
 @media (max-width: 700px) {
   .dashboard, .calc-container {
     flex-direction: column;
+  }
+
+  .tagline {
+    font-size: 15px;
+  }
+
+  .footer {
+    font-size: 13px;
   }
 }
