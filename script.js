@@ -119,7 +119,7 @@ document.getElementById("diagnoseBtn").addEventListener("click", async () => {
       <br>Upgrade to Pro for unlimited access or refer 3 users for 1 month free.</p>
       <div class="upgrade-inline">
         <input type="email" id="upgradeEmail" placeholder="Enter your email" required />
-        <button id="continuePaystack" class="upgrade-btn">Continue to Paystack</button>
+        <button id="continuePaystack" class="upgrade-btn">Pay N1,500 to Upgrade</button>
       </div>
       <button id="referBtn" class="refer-btn">Refer Friends</button>`;
     return;
@@ -191,7 +191,7 @@ if (ref) {
 
 function openPaystack(email) {
   const handler = PaystackPop.setup({
-    key: "pk_test_1234567890abcdef12345678", // Replace with your Paystack key
+    key: pk_live_9302b12dd3dadda9b9113e35f4478b1cf29fb998, // Replace with your Paystack key
     email,
     amount: 150000, // ₦1,500
     currency: "NGN",
@@ -288,3 +288,4 @@ document.getElementById("calcFeedQty").addEventListener("click", () => {
   const totalFeed = (avgWeight * totalFish * feedRate).toFixed(2);
   document.getElementById("feedQtyResult").textContent = `Feed Quantity: ${totalFeed} kg/day`;
 });
+
