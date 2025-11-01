@@ -9,6 +9,7 @@
 <body>
   <div class="container">
     <h1>🐟 MyFishDoc Online</h1>
+    <p class="tagline">Smart Aquaculture Assistant — Diagnose, Record & Grow</p>
 
     <div class="tabs">
       <button class="tab-button active" data-tab="records">Farm Records</button>
@@ -27,8 +28,7 @@
       <h2>Add Farm Record</h2>
       <form id="recordForm">
         <label for="date">Date</label>
-<input type="date" id="date" required>
-
+        <input type="date" id="date" required>
         <input type="text" id="pondName" placeholder="Pond Name" required />
         <input type="number" id="fishCount" placeholder="Number of Fish" required />
         <input type="number" id="feedUsed" placeholder="Feed Used (kg)" required />
@@ -102,6 +102,15 @@
     </div>
   </div>
 
+  <!-- ===== Footer ===== -->
+  <footer class="footer">
+    <p>💬 Need help? Chat with support on 
+      <a href="https://wa.me/2347061629403" target="_blank">WhatsApp</a>
+    </p>
+    <p>&copy; 2025 MyFishDoc Online — All Rights Reserved</p>
+  </footer>
+
+  <script src="https://js.paystack.co/v1/inline.js"></script>
   <script src="script.js"></script>
 </body>
 </html>
