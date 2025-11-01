@@ -212,7 +212,7 @@ document.addEventListener("DOMContentLoaded", () => {
           messages: [
             {
               role: "user",
-              content: `You are an aquaculture expert. Based on this description: "${input}", identify the likely fish disease, recommend treatment, and prevention steps. Format strictly as JSON with keys: diagnosis, treatment, prevention.`,
+              content: `You are an aquaculture expert with over 20 years of experience and abreast with researches happening all over the world in the aquaculture space. Based on this description: "${input}", identify the likely fish disease, recommend treatment, and prevention steps. Format strictly as JSON with keys: diagnosis, treatment, prevention.`,
             },
           ],
         }),
@@ -233,11 +233,23 @@ document.addEventListener("DOMContentLoaded", () => {
         };
       }
 
-      resultDiv.innerHTML = `
-        <div class="ai-card"><h3>Diagnosis</h3><p>${parsed.diagnosis}</p></div>
-        <div class="ai-card"><h3>Treatment</h3><p>${parsed.treatment}</p></div>
-        <div class="ai-card"><h3>Prevention</h3><p>${parsed.prevention}</p></div>
-      `;
+     // resultDiv.innerHTML = `
+      //  <div class="ai-card"><h3>Diagnosis</h3><p>${parsed.diagnosis}</p></div>
+      //  <div class="ai-card"><h3>Treatment</h3><p>${parsed.treatment}</p></div>
+      //  <div class="ai-card"><h3>Prevention</h3><p>${parsed.prevention}</p></div>
+      `;//
+function formatText(text) {
+  return text
+    .replace(/\n/g, "<br>") // Preserve line breaks
+    .replace(/\d+\.\s/g, "<br><strong>$&</strong>") // Bold numbered points
+    .replace(/\-\s/g, "<br>• "); // Convert dashes to bullet points
+}
+
+resultDiv.innerHTML = `
+  <div class="ai-card"><h3>Diagnosis</h3><p>${formatText(parsed.diagnosis)}</p></div>
+  <div class="ai-card"><h3>Treatment</h3><p>${formatText(parsed.treatment)}</p></div>
+  <div class="ai-card"><h3>Prevention</h3><p>${formatText(parsed.prevention)}</p></div>
+`;
 
       user.diagnosisCount = (user.diagnosisCount || 0) + 1;
       localStorage.setItem("myfishdoc_user", JSON.stringify(user));
@@ -251,3 +263,4 @@ document.addEventListener("DOMContentLoaded", () => {
     if (e.target.id === "referBtn") handleReferral();
   });
 });
+
